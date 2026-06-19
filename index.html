@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tátovy saláty</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <span class="logo">Tátovy saláty 🥗</span>
+    <a href="cart.html" class="cart-btn">
+      🛒 Košík <span class="cart-count" id="cart-count">0</span>
+    </a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Tátovy saláty 🥗</h1>
+  <p>Táta vozí čerstvé saláty ze Satsuki, doprava 20 Kč</p>
+</div>
+
+<!-- Mobile category pills -->
+<div class="mobile-cats" id="mobile-cats"></div>
+
+<div class="shop-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-title">Kategorie</div>
+      <ul class="cat-list" id="cat-list"></ul>
+    </div>
+  </aside>
+
+  <!-- Products -->
+  <main id="main-content">
+    <div class="empty-state">Načítám produkty…</div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CATEGORY_ORDER = ["Saláty", "Sýry", "Rybí speciality", "Pomazánky", "Ostatní výrobky", "Rybí saláty"];
+
+const productMap = {};
+let allProducts = [];
+let activeCategory = "Vše";
+
+// ── Košík ─────────────────────────────────────────────
+function getCart() {
+  try { return JSON.parse(localStorage.getItem("cart") || "[]"); } catch { return []; }
+}
+function saveCart(c) { localStorage.setItem("cart", JSON.stringify(c)); }
+function updateCartCount() {
+  document.getElementById("cart-count").textContent =
+    getCart().reduce((s, i) => s + i.quantity, 0);
+}
+
+// ── Načtení produktů ──────────────────────────────────
+async function loadProducts() {
+  const { data, error } = await db
+    .from("products")
+    .select("*")
+    .eq("active", true)
+    .order("name");
+
+  const main = document.getElementById("main-content");
+
+  if (error) {
+    main.innerHTML = `<div class="empty-state" style="color:#c0392b">Chyba při načítání: ${error.message}</div>`;
+    return;
+  }
+  if (!data || !data.length) {
+    main.innerHTML = `<div class="empty-state">Žádné produkty k dispozici.</div>`;
+    return;
+  }
+
+  allProducts = data;
+  data.forEach(p => { productMap[p.id] = p; });
+
+  buildSidebar(data);
+  renderProducts();
+
+  main.addEventListener("click", function(e) {
+    const card = e.target.closest(".product-card");
+    if (card) openModal(card.dataset.id);
+  });
+}
+
+// ── Sidebar ───────────────────────────────────────────
+function buildSidebar(products) {
+  // Počty per kategorie
+  const counts = {};
+  products.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
+
+  // Kategorie v definovaném pořadí + případné další ze Supabase
+  const fromDB = [...new Set(products.map(p => p.category))];
+  const ordered = [
+    ...CATEGORY_ORDER.filter(c => fromDB.includes(c)),
+    ...fromDB.filter(c => !CATEGORY_ORDER.includes(c)),
+  ];
+  const categories = ["Vše", ...ordered];
+
+  const listHTML = categories.map(cat => {
+    const count = cat === "Vše" ? products.length : (counts[cat] || 0);
+    return `<li class="cat-item ${cat === activeCategory ? "active" : ""}" data-cat="${cat}">
+      <span class="cat-name">${cat}</span>
+      <span class="cat-count">${count}</span>
+    </li>`;
+  }).join("");
+
+  document.getElementById("cat-list").innerHTML = listHTML;
+
+  // Mobile pills
+  document.getElementById("mobile-cats").innerHTML = categories.map(cat => {
+    const count = cat === "Vše" ? products.length : (counts[cat] || 0);
+    return `<button class="cat-pill ${cat === activeCategory ? "active" : ""}" data-cat="${cat}">${cat} <span>${count}</span></button>`;
+  }).join("");
+
+  // Events — sidebar
+  document.getElementById("cat-list").addEventListener("click", function(e) {
+    const item = e.target.closest(".cat-item");
+    if (!item) return;
+    setCategory(item.dataset.cat);
+  });
+
+  // Events — mobile pills
+  document.getElementById("mobile-cats").addEventListener("click", function(e) {
+    const pill = e.target.closest(".cat-pill");
+    if (!pill) return;
+    setCategory(pill.dataset.cat);
+  });
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+
+  document.querySelectorAll(".cat-item").forEach(el =>
+    el.classList.toggle("active", el.dataset.cat === cat));
+  document.querySelectorAll(".cat-pill").forEach(el =>
+    el.classList.toggle("active", el.dataset.cat === cat));
+
+  // Scroll mobile pill into view
+  const activePill = document.querySelector(`.cat-pill[data-cat="${cat}"]`);
+  if (activePill) activePill.scrollIntoView({ inline: "center", behavior: "smooth" });
+
+  renderProducts();
+}
+
+// ── Render produktů ───────────────────────────────────
+function productCardHTML(p) {
+  const variants = Array.isArray(p.variants) ? p.variants : [];
+  const firstPrice = variants.length ? variants[0].price : null;
+  const shortDesc = p.description
+    ? (p.description.length > 80 ? p.description.slice(0, 80) + "…" : p.description)
+    : "";
+  return `
+    <div class="product-card" data-id="${p.id}">
+      <div class="product-name">${p.name}</div>
+      ${shortDesc ? `<div class="product-desc">${shortDesc}</div>` : ""}
+      ${firstPrice !== null ? `<div class="product-price">od ${firstPrice} Kč</div>` : ""}
+      <div class="product-tag">${p.category}</div>
+    </div>
+  `;
+}
+
+function renderProducts() {
+  const main = document.getElementById("main-content");
+
+  if (activeCategory === "Vše") {
+    // Seskup podle pořadí kategorií
+    const byCategory = {};
+    allProducts.forEach(p => {
+      if (!byCategory[p.category]) byCategory[p.category] = [];
+      byCategory[p.category].push(p);
+    });
+
+    const fromDB = [...new Set(allProducts.map(p => p.category))];
+    const ordered = [
+      ...CATEGORY_ORDER.filter(c => fromDB.includes(c)),
+      ...fromDB.filter(c => !CATEGORY_ORDER.includes(c)),
+    ];
+
+    main.innerHTML = ordered.map(cat => `
+      <section class="category-section">
+        <h2>${cat}</h2>
+        <div class="products-grid">
+          ${byCategory[cat].map(productCardHTML).join("")}
+        </div>
+      </section>
+    `).join("");
+  } else {
+    const filtered = allProducts.filter(p => p.category === activeCategory);
+    if (!filtered.length) {
+      main.innerHTML = `<div class="empty-state">Žádné produkty v této kategorii.</div>`;
+      return;
+    }
+    main.innerHTML = `
+      <div class="products-grid">
+        ${filtered.map(productCardHTML).join("")}
+      </div>
+    `;
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────
+let currentProduct = null;
+let selectedVariantIdx = 0;
+let modalQty = 1;
+
+function openModal(productId) {
+  currentProduct = productMap[productId];
+  if (!currentProduct) return;
+  selectedVariantIdx = 0;
+  modalQty = 1;
+  renderModal();
+  document.getElementById("modal-overlay").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function renderModal() {
+  const p = currentProduct;
+  const variants = Array.isArray(p.variants) ? p.variants : [];
+  const activeVariant = variants[selectedVariantIdx] || null;
+  const unitPrice = activeVariant ? activeVariant.price : 0;
+
+  document.getElementById("modal-body").innerHTML = `
+    <h3 class="modal-title">${p.name}</h3>
+    ${p.description ? `<div class="modal-desc-scroll"><p class="modal-desc">${p.description}</p></div>` : ""}
+
+    ${variants.length > 0 ? `
+      <div class="modal-section">
+        <div class="modal-label">Varianta</div>
+        <div class="variant-btns">
+          ${variants.map((v, i) => `
+            <button class="variant-btn ${i === selectedVariantIdx ? "active" : ""}"
+                    data-variant-idx="${i}">${v.label} — ${v.price} Kč</button>
+          `).join("")}
+        </div>
+      </div>
+    ` : ""}
+
+    <div class="modal-section">
+      <div class="modal-label">Množství</div>
+      <div class="qty-controls">
+        <button class="qty-btn" id="qty-minus">−</button>
+        <input class="qty-input" id="modal-qty" type="number" min="1" value="${modalQty}" />
+        <button class="qty-btn" id="qty-plus">+</button>
+      </div>
+    </div>
+
+    ${unitPrice > 0 ? `<div class="modal-total">Celkem: <strong id="modal-total-val">${unitPrice * modalQty} Kč</strong></div>` : ""}
+
+    <button class="submit-btn" id="add-to-cart-btn">Přidat do košíku</button>
+  `;
+
+  document.querySelectorAll(".variant-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      selectedVariantIdx = parseInt(this.dataset.variantIdx);
+      syncQtyFromInput();
+      renderModal();
+    });
+  });
+
+  document.getElementById("qty-minus").addEventListener("click", function() {
+    const inp = document.getElementById("modal-qty");
+    inp.value = modalQty = Math.max(1, (parseInt(inp.value) || 1) - 1);
+    updateTotalDisplay();
+  });
+  document.getElementById("qty-plus").addEventListener("click", function() {
+    const inp = document.getElementById("modal-qty");
+    inp.value = modalQty = (parseInt(inp.value) || 1) + 1;
+    updateTotalDisplay();
+  });
+  document.getElementById("modal-qty").addEventListener("input", function() {
+    modalQty = Math.max(1, parseInt(this.value) || 1);
+    this.value = modalQty;
+    updateTotalDisplay();
+  });
+
+  document.getElementById("add-to-cart-btn").addEventListener("click", addToCart);
+}
+
+function syncQtyFromInput() {
+  const inp = document.getElementById("modal-qty");
+  if (inp) modalQty = Math.max(1, parseInt(inp.value) || 1);
+}
+
+function updateTotalDisplay() {
+  const variants = Array.isArray(currentProduct.variants) ? currentProduct.variants : [];
+  const unitPrice = variants[selectedVariantIdx] ? variants[selectedVariantIdx].price : 0;
+  const el = document.getElementById("modal-total-val");
+  if (el) el.textContent = `${unitPrice * modalQty} Kč`;
+}
+
+function addToCart() {
+  const p = currentProduct;
+  syncQtyFromInput();
+  const variants = Array.isArray(p.variants) ? p.variants : [];
+  const variant = variants[selectedVariantIdx] || null;
+
+  const cart = getCart();
+  const key = `${p.id}__${variant ? variant.label : ""}`;
+  const existing = cart.find(i => i._key === key);
+  if (existing) {
+    existing.quantity += modalQty;
+  } else {
+    cart.push({
+      _key: key,
+      productId: p.id,
+      productName: p.name,
+      variant: variant ? variant.label : "",
+      quantity: modalQty,
+      price: variant ? variant.price : 0,
+    });
+  }
+
+  saveCart(cart);
+  updateCartCount();
+  closeModal();
+
+  const flash = document.createElement("div");
+  flash.className = "flash-toast";
+  flash.textContent = `✓ ${p.name} přidán do košíku`;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 2200);
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").style.display = "none";
+  document.body.style.overflow = "";
+  currentProduct = null;
+}
+
+document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+document.getElementById("modal-overlay").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
+
+// ── Init ──────────────────────────────────────────────
+updateCartCount();
+loadProducts();
+</script>
+</body>
+</html>

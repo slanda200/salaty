@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tátovy saláty – Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── TABS ── */
+    .tabs { display:flex; border-bottom:2px solid var(--gray-200); background:#fff; padding:0 24px; }
+    .tab-btn { padding:14px 24px; font-size:.95rem; font-weight:600; color:var(--gray-600); background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; cursor:pointer; transition:color .15s,border-color .15s; }
+    .tab-btn.active { color:var(--green); border-bottom-color:var(--green); }
+    .tab-btn:hover:not(.active) { color:var(--gray-800); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* ── FILTER / ACTION BARS ── */
+    .filter-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; padding:0 16px; }
+    .filter-bar input, .filter-bar select {
+      border:1.5px solid var(--gray-200); border-radius:8px; padding:8px 12px;
+      font-size:.9rem; font-family:inherit; outline:none; background:#fff;
+    }
+    .filter-bar input:focus, .filter-bar select:focus { border-color:var(--green); }
+    .filter-bar input[type="text"] { flex:1; min-width:160px; }
+
+    .action-bar {
+      display:none; align-items:center; gap:10px; flex-wrap:wrap;
+      background:#fffbe6; border:1.5px solid #f0d060; border-radius:10px;
+      padding:10px 14px; margin:0 16px 12px;
+    }
+    .action-bar.visible { display:flex; }
+    .action-bar .sel-count { font-weight:700; font-size:.9rem; margin-right:4px; }
+    .btn-action {
+      background:#fff; border:1.5px solid var(--gray-200); border-radius:8px;
+      padding:7px 14px; font-size:.85rem; font-weight:600; cursor:pointer;
+      transition:all .15s;
+    }
+    .btn-action:hover { border-color:var(--green); color:var(--green); }
+    .btn-action.danger:hover { border-color:#c0392b; color:#c0392b; }
+    .action-group-select {
+      border:1.5px solid var(--gray-200); border-radius:8px; padding:7px 10px;
+      font-size:.85rem; font-family:inherit; outline:none; background:#fff;
+    }
+
+    /* ── TOGGLE ── */
+    .toggle { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:var(--gray-200); border-radius:24px; cursor:pointer; transition:background .2s; }
+    .toggle-slider::before { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+    .toggle input:checked + .toggle-slider { background:var(--green); }
+    .toggle input:checked + .toggle-slider::before { transform:translateX(20px); }
+
+    /* ── GROUP BADGE ── */
+    .group-badge {
+      display:inline-flex; align-items:center; gap:5px;
+      border-radius:50px; padding:3px 10px; font-size:.78rem; font-weight:700;
+      color:#fff; white-space:nowrap;
+    }
+
+    /* ── STATUS BADGE ── */
+    .status-badge {
+      display:inline-block; border-radius:50px; padding:3px 10px;
+      font-size:.78rem; font-weight:700; color:#fff; white-space:nowrap;
+      cursor:pointer; border:none; transition:opacity .15s;
+    }
+    .status-badge:hover { opacity:.85; }
+
+    /* ── GROUP / STATUS DROPDOWN ── */
+    .group-cell { display:flex; align-items:center; gap:6px; }
+    .group-assign-select {
+      border:1.5px solid var(--gray-200); border-radius:6px; padding:3px 6px;
+      font-size:.8rem; font-family:inherit; outline:none; background:#fff; cursor:pointer;
+    }
+    .group-assign-select:focus { border-color:var(--green); }
+
+    /* ── STATUS DROPDOWN IN CELL ── */
+    .status-cell { position:relative; display:flex; align-items:center; gap:5px; }
+    .status-select-wrap { position:relative; }
+    .status-assign-select {
+      border:1.5px solid var(--gray-200); border-radius:6px; padding:3px 6px;
+      font-size:.8rem; font-family:inherit; outline:none; background:#fff; cursor:pointer;
+    }
+    .status-assign-select:focus { border-color:var(--green); }
+
+    /* ── ADMIN MODAL ── */
+    .admin-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:300; padding:16px; }
+    .admin-modal-box { background:#fff; border-radius:var(--radius); padding:28px 24px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; position:relative; }
+    .admin-modal-box h3 { font-size:1.2rem; font-weight:700; margin-bottom:20px; }
+    .admin-modal-box .modal-close { position:absolute; top:14px; right:14px; background:var(--gray-100); border:none; border-radius:50%; width:32px; height:32px; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .admin-modal-box .modal-close:hover { background:var(--gray-200); }
+
+    /* ── FORM ── */
+    .aform-group { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+    .aform-group label { font-size:.8rem; font-weight:700; color:var(--gray-600); text-transform:uppercase; letter-spacing:.04em; }
+    .aform-group input, .aform-group select, .aform-group textarea {
+      border:1.5px solid var(--gray-200); border-radius:8px; padding:9px 12px;
+      font-size:.95rem; font-family:inherit; outline:none; background:#fafafa; transition:border-color .15s;
+    }
+    .aform-group input:focus, .aform-group select:focus, .aform-group textarea:focus { border-color:var(--green); background:#fff; }
+    .aform-group textarea { resize:vertical; min-height:80px; }
+
+    /* ── VARIANTS ── */
+    .variants-list { display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+    .variant-row { display:flex; gap:8px; align-items:center; }
+    .variant-row input { flex:1; }
+    .variant-row input[type="number"] { max-width:100px; }
+    .variant-row .rm-btn { background:#fdecea; color:#c0392b; border:none; border-radius:6px; width:30px; height:30px; font-size:1rem; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+    .variant-row .rm-btn:hover { background:#f5b7b1; }
+    .add-variant-btn { background:var(--green-light); color:var(--green-dark); border:none; border-radius:8px; padding:7px 14px; font-size:.85rem; font-weight:600; cursor:pointer; }
+    .add-variant-btn:hover { background:var(--green); color:#fff; }
+
+    /* ── MODAL FOOTER ── */
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--gray-200); }
+    .btn-save { background:var(--green); color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:.95rem; font-weight:700; cursor:pointer; }
+    .btn-save:hover { background:var(--green-dark); }
+    .btn-save:disabled { opacity:.6; cursor:default; }
+    .btn-cancel { background:var(--gray-100); color:var(--gray-800); border:none; border-radius:8px; padding:10px 18px; font-size:.95rem; font-weight:600; cursor:pointer; }
+    .btn-cancel:hover { background:var(--gray-200); }
+
+    .checkbox-row { display:flex; align-items:center; gap:10px; font-size:.95rem; font-weight:600; margin-bottom:14px; }
+    .checkbox-row input[type="checkbox"] { width:18px; height:18px; accent-color:var(--green); cursor:pointer; }
+
+    /* ── GROUPS / STATUSES MODAL ── */
+    .groups-list { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; min-height:40px; }
+    .group-row { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--gray-100); border-radius:8px; }
+    .group-row input[type="color"] { width:32px; height:32px; border:none; border-radius:6px; cursor:pointer; padding:0; background:none; }
+    .group-row .group-name-txt { flex:1; font-weight:600; font-size:.92rem; }
+    .group-row .rm-btn { background:#fdecea; color:#c0392b; border:none; border-radius:6px; width:28px; height:28px; font-size:.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .group-row .rm-btn:hover { background:#f5b7b1; }
+    .group-row .rm-btn:disabled { opacity:.4; cursor:default; }
+    .add-group-form { display:flex; gap:8px; flex-wrap:wrap; }
+    .add-group-form input[type="text"] { flex:1; min-width:120px; border:1.5px solid var(--gray-200); border-radius:8px; padding:8px 12px; font-size:.9rem; font-family:inherit; outline:none; }
+    .add-group-form input[type="text"]:focus { border-color:var(--green); }
+    .add-group-form input[type="color"] { width:40px; height:38px; border:none; cursor:pointer; border-radius:8px; background:none; padding:0; }
+
+    /* ── SORTABLE HEADERS ── */
+    th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+    th.sortable:hover { color:var(--green); }
+    th.sort-asc, th.sort-desc { color:var(--green); }
+    .sort-arrow { font-size:.75rem; margin-left:4px; opacity:.5; }
+    th.sort-asc .sort-arrow, th.sort-desc .sort-arrow { opacity:1; }
+
+    /* ── TRASH BTN ── */
+    .btn-trash { background:none; border:none; cursor:pointer; color:var(--gray-400); font-size:1rem; padding:4px 6px; border-radius:6px; transition:color .15s,background .15s; }
+    .btn-trash:hover { color:#c0392b; background:#fdecea; }
+
+    /* ── SELECT ALL CHECKBOX ── */
+    th input[type="checkbox"], td input[type="checkbox"] { accent-color:var(--green); width:15px; height:15px; cursor:pointer; }
+
+    /* ── IP BLOCK ── */
+    .ip-cell { display:flex; align-items:center; gap:4px; }
+    .ip-text { font-family:monospace; font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ip-blocked-badge { background:#fdecea; color:#c0392b; border-radius:50px; padding:2px 6px; font-size:.72rem; font-weight:700; flex-shrink:0; }
+    .btn-block { background:none; border:none; cursor:pointer; font-size:.9rem; padding:2px 4px; border-radius:5px; transition:background .15s; flex-shrink:0; }
+    .btn-block:hover { background:#fdecea; }
+    .no-print { }
+
+    /* ── TABLE LAYOUT ── */
+    .orders-table-wrap { overflow-x:auto; width:100%; box-sizing:border-box; }
+    #orders-screen table {
+      table-layout:auto; width:100%; border-collapse:collapse;
+    }
+    #orders-screen table th, #orders-screen table td {
+      padding:8px 6px; font-size:.88rem; white-space:nowrap;
+    }
+    #orders-screen table td.items-list { white-space:normal; word-break:break-word; }
+
+    /* fixed column widths */
+    #orders-screen col.col-cb    { width:36px; }
+    #orders-screen col.col-num   { width:48px; }
+    #orders-screen col.col-time  { width:140px; }
+    #orders-screen col.col-total { width:90px; }
+    #orders-screen col.col-acts  { width:70px; }
+
+    /* ── COLUMNS DROPDOWN ── */
+    .col-toggle-wrap { position:relative; }
+    .col-dropdown {
+      position:absolute; top:calc(100% + 6px); right:0; z-index:200;
+      background:#fff; border:1px solid var(--gray-200); border-radius:8px;
+      padding:8px; min-width:160px; box-shadow:0 4px 12px rgba(0,0,0,.1);
+      display:none;
+    }
+    .col-dropdown.open { display:block; }
+    .col-dropdown-row {
+      display:flex; align-items:center; gap:8px;
+      padding:4px 8px; border-radius:6px; cursor:pointer; font-size:.9rem;
+    }
+    .col-dropdown-row:hover { background:var(--gray-100); }
+    .col-dropdown-row input[type="checkbox"] { accent-color:var(--green); width:14px; height:14px; cursor:pointer; }
+
+    /* ── PRINT ── */
+    #print-area { display: none; }
+    @media print {
+      body > *:not(#print-area) { display: none !important; }
+      #print-area { display: block !important; }
+      .no-print { display: none !important; }
+      @page { margin: 15mm; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { border: 0.5px solid #ccc; padding: 4px 8px; text-align: left; }
+      th { background: #f5f5f5; font-weight: 600; }
+      h2 { font-size: 16px; margin: 0 0 8px; }
+      h3 { font-size: 14px; margin: 16px 0 6px; }
+      .print-section-1, .print-section-2, .print-section-detail { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PIN overlay -->
+<div id="pin-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999">
+  <div class="pin-box">
+    <h2>🔒 Admin</h2>
+    <p>Zadej PIN pro přístup k adminu</p>
+    <input type="password" id="pin-input" maxlength="6" inputmode="numeric" placeholder="••••" />
+    <button class="pin-submit" id="pin-btn">Vstoupit</button>
+    <div class="pin-error" id="pin-error">Špatný PIN, zkus to znovu.</div>
+  </div>
+</div>
+
+<!-- Admin content -->
+<div id="admin-content" style="display:none">
+
+  <header class="admin-header">
+    <div style="display:flex;align-items:center;gap:16px">
+      <a href="index.html" class="btn-outline" style="opacity:.75;font-size:.85rem;padding:6px 14px;text-decoration:none">← Hlavní stránka</a>
+      <h1>🥗 Tátovy saláty — Admin</h1>
+    </div>
+    <div class="admin-actions">
+      <button class="btn-outline" onclick="refreshCurrentTab()">↻ Obnovit</button>
+      <button class="btn-outline" id="header-print" onclick="printOrders()" style="display:none">🖨 Vytisknout</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="orders">📋 Objednávky</button>
+    <button class="tab-btn" data-tab="products">🛒 Produkty</button>
+    <button class="tab-btn" data-tab="blocked">🚫 Blokované IP <span id="blocked-badge" style="display:none;background:#c0392b;color:#fff;border-radius:50px;padding:1px 7px;font-size:.75rem;margin-left:4px"></span></button>
+  </div>
+
+  <!-- ── TAB: ORDERS ── -->
+  <div class="tab-panel active" id="tab-orders">
+    <div class="admin-main">
+
+      <div class="stats-bar">
+        <div class="stat-card"><div class="label">Celkem objednávek</div><div class="value" id="stat-total">—</div></div>
+        <div class="stat-card"><div class="label">Nové</div><div class="value" id="stat-new">—</div></div>
+        <div class="stat-card"><div class="label">Tržby dnes</div><div class="value" id="stat-revenue">—</div></div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <input type="text" id="ord-search" placeholder="Jméno nebo telefon…" oninput="renderOrdersTable()" />
+        <select id="ord-status-filter" onchange="renderOrdersTable()">
+          <option value="">Všechny statusy</option>
+        </select>
+        <select id="ord-group-filter" onchange="renderOrdersTable()">
+          <option value="">Všechny kategorie</option>
+          <option value="__none__">Bez kategorie</option>
+        </select>
+        <button class="btn-action" onclick="openGroupsModal()">🏷 Spravovat kategorie</button>
+        <button class="btn-action" onclick="openStatusesModal()">🔖 Spravovat statusy</button>
+        <div class="col-toggle-wrap">
+          <button class="btn-action" id="col-toggle-btn" onclick="toggleColDropdown()">⚙ Sloupce</button>
+          <div class="col-dropdown" id="col-dropdown"></div>
+        </div>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div class="action-bar" id="action-bar">
+        <span class="sel-count" id="sel-count">Vybráno: 0</span>
+        <select class="action-group-select" id="bulk-group-select" onchange="bulkAssignGroup()">
+          <option value="">Přiřadit kategorii…</option>
+          <option value="__none__">— Odebrat kategorii —</option>
+        </select>
+        <button class="btn-action danger" onclick="bulkDelete()">🗑 Smazat vybrané</button>
+      </div>
+
+      <!-- Orders table (screen) -->
+      <div class="orders-table-wrap" id="orders-screen">
+        <table>
+          <colgroup>
+            <col class="col-cb" /><col class="col-num" /><col class="col-time" />
+            <col class="col-name" /><col class="col-phone" /><col class="col-items" />
+            <col class="col-total" /><col class="col-note" /><col class="col-group" />
+            <col class="col-status" /><col class="col-ip" /><col class="col-acts" />
+          </colgroup>
+          <thead>
+            <tr id="orders-thead-row">
+              <th data-column="cb"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" /></th>
+              <th class="sortable" data-col="idx" data-column="num">#<span class="sort-arrow">↕</span></th>
+              <th class="sortable" data-col="created_at" data-column="cas">Čas<span class="sort-arrow">↕</span></th>
+              <th class="sortable" data-col="name" data-column="jmeno">Jméno<span class="sort-arrow">↕</span></th>
+              <th data-column="telefon">Telefon</th>
+              <th data-column="polozky">Položky</th>
+              <th class="sortable" data-col="total_price" data-column="celkem">Celkem<span class="sort-arrow">↕</span></th>
+              <th data-column="poznamka">Poznámka</th>
+              <th class="sortable" data-col="group" data-column="kategorie">Kategorie<span class="sort-arrow">↕</span></th>
+              <th data-column="status">Status</th>
+              <th class="no-print" data-column="ip">IP</th>
+              <th data-column="akce">Akce</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB: PRODUCTS ── -->
+  <div class="tab-panel" id="tab-products">
+    <div class="admin-main">
+      <div class="filter-bar">
+        <input type="text" id="prod-search" placeholder="Hledat podle názvu…" oninput="renderProductsTable()" />
+        <select id="prod-cat-filter" onchange="renderProductsTable()">
+          <option value="">Všechny kategorie</option>
+          <option>Saláty</option><option>Sýry</option><option>Rybí speciality</option>
+          <option>Pomazánky</option><option>Ostatní výrobky</option><option>Rybí saláty</option>
+        </select>
+        <button class="btn-action" onclick="openNewProductModal()" style="margin-left:auto">＋ Přidat produkt</button>
+      </div>
+      <div class="orders-table-wrap">
+        <table>
+          <thead>
+            <tr><th>Název</th><th>Kategorie</th><th>Varianty</th><th>Stav</th><th>Akce</th></tr>
+          </thead>
+          <tbody id="products-body"><tr><td colspan="5" class="empty-state">Načítám…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: BLOCKED IPs ── -->
+  <div class="tab-panel" id="tab-blocked">
+    <div class="admin-main">
+      <div class="orders-table-wrap">
+        <table>
+          <thead>
+            <tr><th>IP adresa</th><th>Důvod</th><th>Datum blokace</th><th>Akce</th></tr>
+          </thead>
+          <tbody id="blocked-body"><tr><td colspan="4" class="empty-state">Načítám…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── GROUPS MODAL ── -->
+<div id="groups-modal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal-box" style="max-width:440px">
+    <button class="modal-close" onclick="closeGroupsModal()">✕</button>
+    <h3>🏷 Kategorie zákazníků</h3>
+    <div class="groups-list" id="groups-list"></div>
+    <div class="add-group-form">
+      <input type="color" id="new-group-color" value="#1D9E75" />
+      <input type="text" id="new-group-name" placeholder="Název nové kategorie" />
+      <button type="button" class="btn-save" onclick="addGroup()" style="padding:8px 16px;font-size:.9rem">Přidat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STATUSES MODAL ── -->
+<div id="statuses-modal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal-box" style="max-width:440px">
+    <button class="modal-close" onclick="closeStatusesModal()">✕</button>
+    <h3>🔖 Statusy objednávek</h3>
+    <div class="groups-list" id="statuses-list"></div>
+    <div class="add-group-form">
+      <input type="color" id="new-status-color" value="#1D9E75" />
+      <input type="text" id="new-status-name" placeholder="Název nového statusu" />
+      <button type="button" class="btn-save" onclick="addStatus()" style="padding:8px 16px;font-size:.9rem">Přidat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PRODUCT EDIT/CREATE MODAL ── -->
+<div id="prod-modal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal-box">
+    <button class="modal-close" id="prod-modal-close">✕</button>
+    <h3 id="prod-modal-title">Upravit produkt</h3>
+    <form id="prod-form" onsubmit="saveProduct(event)">
+      <input type="hidden" id="pf-id" />
+      <div class="aform-group"><label>Název</label><input type="text" id="pf-name" required /></div>
+      <div class="aform-group">
+        <label>Kategorie</label>
+        <select id="pf-category" required>
+          <option>Saláty</option><option>Sýry</option><option>Rybí speciality</option>
+          <option>Pomazánky</option><option>Ostatní výrobky</option><option>Rybí saláty</option>
+        </select>
+      </div>
+      <div class="aform-group"><label>Popis</label><textarea id="pf-desc"></textarea></div>
+      <div class="aform-group">
+        <label>Varianty</label>
+        <div class="variants-list" id="pf-variants"></div>
+        <button type="button" class="add-variant-btn" onclick="addVariantRow()">+ Přidat variantu</button>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="pf-active" />
+        <label for="pf-active">Skladem (zobrazovat na homepage)</label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="prod-modal-cancel">Zrušit</button>
+        <button type="submit" class="btn-save" id="prod-save-btn">Uložit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const ADMIN_PIN = "1234";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allOrders     = [];
+let allGroups     = [];
+let allStatuses   = [];
+let allProducts   = [];
+let allBlockedIps = [];
+let orderIpMap    = {};
+let blockedIpSet  = new Set();
+let currentTab    = "orders";
+let selectedIds   = new Set();
+let sortState     = { col: null, dir: null };
+
+// ── PIN ───────────────────────────────────────────────
+function checkPin() {
+  if (document.getElementById("pin-input").value.trim() === ADMIN_PIN) {
+    document.getElementById("pin-overlay").style.display = "none";
+    document.getElementById("admin-content").style.display = "block";
+    document.getElementById("header-print").style.display = "";
+    Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
+  } else {
+    document.getElementById("pin-error").style.display = "block";
+    document.getElementById("pin-input").value = "";
+    document.getElementById("pin-input").focus();
+  }
+}
+document.getElementById("pin-btn").addEventListener("click", checkPin);
+document.getElementById("pin-input").addEventListener("keydown", e => { if (e.key === "Enter") checkPin(); });
+window.addEventListener("load", () => document.getElementById("pin-input").focus());
+
+// ── TABS ──────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", function() {
+    currentTab = this.dataset.tab;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === this));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `tab-${currentTab}`));
+    document.getElementById("header-print").style.display = currentTab === "orders" ? "" : "none";
+    if (currentTab === "products" && !allProducts.length) loadProductsList();
+    if (currentTab === "blocked") loadBlockedIps();
+  });
+});
+
+function refreshCurrentTab() {
+  if (currentTab === "orders") Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
+  else if (currentTab === "products") loadProductsList();
+  else if (currentTab === "blocked") loadBlockedIps();
+}
+
+// ── GROUPS ────────────────────────────────────────────
+async function loadGroups() {
+  const { data } = await db.from("customer_groups").select("*").order("name");
+  allGroups = data || [];
+  rebuildGroupSelects();
+}
+
+function rebuildGroupSelects() {
+  const ordFilter = document.getElementById("ord-group-filter");
+  const prevOrdVal = ordFilter.value;
+  ordFilter.innerHTML = `<option value="">Všechny kategorie</option><option value="__none__">Bez kategorie</option>`;
+  allGroups.forEach(g => { ordFilter.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
+  ordFilter.value = prevOrdVal;
+
+  const bulk = document.getElementById("bulk-group-select");
+  bulk.innerHTML = `<option value="">Přiřadit kategorii…</option><option value="__none__">— Odebrat kategorii —</option>`;
+  allGroups.forEach(g => { bulk.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
+}
+
+// ── GROUPS MODAL ──────────────────────────────────────
+function openGroupsModal() {
+  renderGroupsList();
+  document.getElementById("groups-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+function closeGroupsModal() {
+  document.getElementById("groups-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("groups-modal").addEventListener("click", function(e) {
+  if (e.target === this) closeGroupsModal();
+});
+
+function renderGroupsList() {
+  const list = document.getElementById("groups-list");
+  if (!allGroups.length) {
+    list.innerHTML = `<div style="color:var(--gray-400);font-size:.9rem">Žádné kategorie</div>`;
+    return;
+  }
+  const usageCounts = {};
+  allOrders.forEach(o => { if (o.group_id) usageCounts[o.group_id] = (usageCounts[o.group_id] || 0) + 1; });
+  list.innerHTML = allGroups.map(g => {
+    const used = usageCounts[g.id] || 0;
+    return `
+      <div class="group-row" id="grow-${g.id}">
+        <input type="color" value="${g.color || '#1D9E75'}" onchange="updateGroupColor('${g.id}', this.value)" />
+        <span class="group-name-txt">${g.name}</span>
+        ${used ? `<span style="font-size:.8rem;color:var(--gray-400)">${used}×</span>` : ""}
+        <button class="rm-btn" onclick="deleteGroup('${g.id}')" ${used ? "disabled title='Nelze smazat — přiřazena k objednávkám'" : ""}>✕</button>
+      </div>`;
+  }).join("");
+}
+
+async function addGroup() {
+  const name = document.getElementById("new-group-name").value.trim();
+  const color = document.getElementById("new-group-color").value;
+  if (!name) return;
+  const { data, error } = await db.from("customer_groups").insert({ name, color }).select().single();
+  if (error) { alert("Chyba: " + error.message); return; }
+  allGroups.push(data);
+  allGroups.sort((a, b) => a.name.localeCompare(b.name));
+  rebuildGroupSelects();
+  renderGroupsList();
+  renderOrdersTable();
+  document.getElementById("new-group-name").value = "";
+}
+
+async function updateGroupColor(id, color) {
+  await db.from("customer_groups").update({ color }).eq("id", id);
+  const g = allGroups.find(x => x.id === id);
+  if (g) { g.color = color; renderOrdersTable(); }
+}
+
+async function deleteGroup(id) {
+  if (!confirm("Opravdu smazat tuto kategorii?")) return;
+  const { error } = await db.from("customer_groups").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); return; }
+  allGroups = allGroups.filter(x => x.id !== id);
+  rebuildGroupSelects();
+  renderGroupsList();
+  renderOrdersTable();
+}
+
+// ── STATUSES ──────────────────────────────────────────
+async function loadStatuses() {
+  const { data } = await db.from("order_statuses").select("*").order("name");
+  allStatuses = data || [];
+  rebuildStatusFilter();
+}
+
+function rebuildStatusFilter() {
+  const sel = document.getElementById("ord-status-filter");
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">Všechny statusy</option>`;
+  allStatuses.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.name}</option>`; });
+  sel.value = prev;
+}
+
+function statusById(id) { return allStatuses.find(s => s.id === id) || null; }
+
+// ── STATUSES MODAL ────────────────────────────────────
+function openStatusesModal() {
+  renderStatusesList();
+  document.getElementById("statuses-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+function closeStatusesModal() {
+  document.getElementById("statuses-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("statuses-modal").addEventListener("click", function(e) {
+  if (e.target === this) closeStatusesModal();
+});
+
+function renderStatusesList() {
+  const list = document.getElementById("statuses-list");
+  if (!allStatuses.length) {
+    list.innerHTML = `<div style="color:var(--gray-400);font-size:.9rem">Žádné statusy</div>`;
+    return;
+  }
+  const usageCounts = {};
+  allOrders.forEach(o => { if (o.status_id) usageCounts[o.status_id] = (usageCounts[o.status_id] || 0) + 1; });
+  list.innerHTML = allStatuses.map(s => {
+    const used = usageCounts[s.id] || 0;
+    return `
+      <div class="group-row" id="srow-${s.id}">
+        <input type="color" value="${s.color || '#1D9E75'}" onchange="updateStatusColor('${s.id}', this.value)" />
+        <span class="group-name-txt">${s.name}</span>
+        ${used ? `<span style="font-size:.8rem;color:var(--gray-400)">${used}×</span>` : ""}
+        <button class="rm-btn" onclick="deleteStatus('${s.id}')" ${used ? "disabled title='Nelze smazat — přiřazen k objednávkám'" : ""}>✕</button>
+      </div>`;
+  }).join("");
+}
+
+async function addStatus() {
+  const name = document.getElementById("new-status-name").value.trim();
+  const color = document.getElementById("new-status-color").value;
+  if (!name) return;
+  const { data, error } = await db.from("order_statuses").insert({ name, color }).select().single();
+  if (error) { alert("Chyba: " + error.message); return; }
+  allStatuses.push(data);
+  allStatuses.sort((a, b) => a.name.localeCompare(b.name));
+  rebuildStatusFilter();
+  renderStatusesList();
+  renderOrdersTable();
+  document.getElementById("new-status-name").value = "";
+}
+
+async function updateStatusColor(id, color) {
+  await db.from("order_statuses").update({ color }).eq("id", id);
+  const s = allStatuses.find(x => x.id === id);
+  if (s) { s.color = color; renderOrdersTable(); }
+}
+
+async function deleteStatus(id) {
+  if (!confirm("Opravdu smazat tento status?")) return;
+  const { error } = await db.from("order_statuses").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); return; }
+  allStatuses = allStatuses.filter(x => x.id !== id);
+  rebuildStatusFilter();
+  renderStatusesList();
+  renderOrdersTable();
+}
+
+async function assignStatus(orderId, statusId) {
+  const val = statusId === "" ? null : statusId;
+  const { error } = await db.from("orders").update({ status_id: val }).eq("id", orderId);
+  if (error) { alert("Chyba: " + error.message); return; }
+  const o = allOrders.find(x => x.id === orderId);
+  if (o) o.status_id = val;
+  renderOrdersTable();
+}
+
+// ── ORDERS ────────────────────────────────────────────
+async function loadOrders() {
+  document.getElementById("orders-body").innerHTML =
+    `<tr><td colspan="12" class="empty-state">Načítám…</td></tr>`;
+
+  const [ordersRes, ipsRes, blockedRes] = await Promise.all([
+    db.from("orders").select("*").order("created_at", { ascending: false }),
+    db.from("order_ips").select("order_id, ip, user_agent"),
+    db.from("blocked_ips").select("ip"),
+  ]);
+
+  if (ordersRes.error) {
+    document.getElementById("orders-body").innerHTML =
+      `<tr><td colspan="12" class="empty-state" style="color:#c0392b">Chyba: ${ordersRes.error.message}</td></tr>`;
+    return;
+  }
+
+  allOrders = ordersRes.data || [];
+
+  orderIpMap = {};
+  (ipsRes.data || []).forEach(row => { orderIpMap[row.order_id] = { ip: row.ip, user_agent: row.user_agent }; });
+
+  blockedIpSet = new Set((blockedRes.data || []).map(r => r.ip));
+
+  selectedIds.clear();
+  updateActionBar();
+  updateStats(allOrders);
+  renderOrdersTable();
+}
+
+function groupById(id) { return allGroups.find(g => g.id === id) || null; }
+
+function orderRowHTML(o) {
+  const dt = new Date(o.created_at);
+  const dateStr = dt.toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const timeStr = dt.toLocaleTimeString("cs-CZ", { hour:"2-digit", minute:"2-digit" });
+  const fullDt = `${dateStr} ${timeStr}`;
+
+  const itemsArr = Array.isArray(o.items) ? o.items : [];
+  const itemsShort = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join(", ");
+  const itemsFull  = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("\n");
+
+  const noteShort = (o.note || "").length > 40 ? (o.note || "").slice(0, 40) + "…" : (o.note || "—");
+
+  const group = groupById(o.group_id);
+  const groupBadge = group
+    ? `<span class="group-badge" style="background:${group.color};font-size:.72rem;padding:2px 7px">${group.name}</span>`
+    : `<span style="color:var(--gray-400);font-size:.8rem">—</span>`;
+  const groupOptions = `
+    <option value="">— bez kategorie —</option>
+    ${allGroups.map(g => `<option value="${g.id}" ${o.group_id === g.id ? "selected" : ""}>${g.name}</option>`).join("")}
+  `;
+
+  const status = statusById(o.status_id);
+  const statusBadge = status
+    ? `<span class="status-badge" style="background:${status.color};cursor:default">${status.name}</span>`
+    : `<span style="color:var(--gray-400);font-size:.8rem">—</span>`;
+  const statusOptions = `
+    <option value="">— bez statusu —</option>
+    ${allStatuses.map(s => `<option value="${s.id}" ${o.status_id === s.id ? "selected" : ""}>${s.name}</option>`).join("")}
+  `;
+
+  const checked = selectedIds.has(o.id) ? "checked" : "";
+
+  const ipInfo = orderIpMap[o.id];
+  const ipAddr = ipInfo ? ipInfo.ip : null;
+  const isBlocked = ipAddr && blockedIpSet.has(ipAddr);
+  const ipCell = ipAddr
+    ? `<div class="ip-cell">
+        <span class="ip-text" title="${ipInfo.user_agent || ""}">${ipAddr}</span>
+        ${isBlocked
+          ? `<span class="ip-blocked-badge">🚫</span>`
+          : `<button class="btn-block" onclick="blockIp('${ipAddr}')" title="Blokovat IP">🚫</button>`}
+       </div>`
+    : `<span style="color:var(--gray-400);font-size:.8rem">—</span>`;
+
+  return `
+    <tr id="orow-${o.id}" ${isBlocked ? 'style="background:#fff5f5"' : ""}>
+      <td data-column="cb"><input type="checkbox" class="row-cb" data-id="${o.id}" ${checked} onchange="toggleSelect('${o.id}', this.checked)" /></td>
+      <td data-column="num">${o.order_number ?? "—"}</td>
+      <td data-column="cas">${fullDt}</td>
+      <td data-column="jmeno" title="${o.first_name} ${o.last_name}">${o.first_name} ${o.last_name}</td>
+      <td data-column="telefon" title="${o.phone}">${o.phone}</td>
+      <td data-column="polozky" class="items-list" title="${itemsFull}">${itemsShort}</td>
+      <td data-column="celkem" style="font-weight:700">${o.total_price} Kč</td>
+      <td data-column="poznamka" title="${o.note || ""}">${noteShort}</td>
+      <td data-column="kategorie">
+        <div class="group-cell">
+          ${groupBadge}
+          <select class="group-assign-select" onchange="assignGroup('${o.id}', this.value)" title="Změnit kategorii">
+            ${groupOptions}
+          </select>
+        </div>
+      </td>
+      <td data-column="status">
+        <div class="group-cell">
+          ${statusBadge}
+          <select class="group-assign-select" onchange="assignStatus('${o.id}', this.value)" title="Změnit status">
+            ${statusOptions}
+          </select>
+        </div>
+      </td>
+      <td data-column="ip" class="no-print">${ipCell}</td>
+      <td data-column="akce">
+        <button class="btn-trash" onclick="deleteSingleOrder('${o.id}')" title="Smazat">🗑</button>
+      </td>
+    </tr>`;
+}
+
+
+function getFilteredOrders() {
+  const search = document.getElementById("ord-search").value.toLowerCase();
+  const statusFilter = document.getElementById("ord-status-filter").value;
+  const groupFilter = document.getElementById("ord-group-filter").value;
+
+  return allOrders.filter(o => {
+    const name = `${o.first_name} ${o.last_name}`.toLowerCase();
+    const phone = (o.phone || "").toLowerCase();
+    const matchSearch = !search || name.includes(search) || phone.includes(search);
+    const matchStatus = !statusFilter || o.status_id === statusFilter;
+    const matchGroup = !groupFilter
+      ? true
+      : groupFilter === "__none__" ? !o.group_id : o.group_id === groupFilter;
+    return matchSearch && matchStatus && matchGroup;
+  });
+}
+
+function applySortToOrders(orders) {
+  const { col, dir } = sortState;
+  if (!col || !dir) return orders;
+
+  const sorted = [...orders];
+  sorted.sort((a, b) => {
+    let va, vb;
+    if (col === "idx") {
+      va = a.order_number || 0; vb = b.order_number || 0;
+    } else if (col === "created_at") {
+      va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime();
+    } else if (col === "name") {
+      va = `${a.last_name} ${a.first_name}`.toLowerCase();
+      vb = `${b.last_name} ${b.first_name}`.toLowerCase();
+    } else if (col === "total_price") {
+      va = a.total_price || 0; vb = b.total_price || 0;
+    } else if (col === "group") {
+      va = (groupById(a.group_id)?.name || "").toLowerCase();
+      vb = (groupById(b.group_id)?.name || "").toLowerCase();
+    }
+    if (va < vb) return dir === "asc" ? -1 : 1;
+    if (va > vb) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+  return sorted;
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll("th.sortable").forEach(th => {
+    const col = th.dataset.col;
+    th.classList.remove("sort-asc", "sort-desc");
+    const arrow = th.querySelector(".sort-arrow");
+    if (col === sortState.col) {
+      if (sortState.dir === "asc") { th.classList.add("sort-asc"); arrow.textContent = "↑"; }
+      else if (sortState.dir === "desc") { th.classList.add("sort-desc"); arrow.textContent = "↓"; }
+      else { arrow.textContent = "↕"; }
+    } else {
+      arrow.textContent = "↕";
+    }
+  });
+}
+
+function renderOrdersTable() {
+  const filtered = getFilteredOrders();
+  const sorted   = applySortToOrders(filtered);
+
+  updateSortHeaders();
+
+  const tbody = document.getElementById("orders-body");
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="12" class="empty-state">Žádné objednávky</td></tr>`;
+    document.getElementById("select-all").checked = false;
+    return;
+  }
+  tbody.innerHTML = sorted.map(o => orderRowHTML(o)).join("");
+
+  const allChecked = sorted.every(o => selectedIds.has(o.id));
+  document.getElementById("select-all").checked = sorted.length > 0 && allChecked;
+
+  applyColVisibility();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("orders-thead-row").addEventListener("click", function(e) {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    const col = th.dataset.col;
+    if (sortState.col !== col) {
+      sortState = { col, dir: "asc" };
+    } else {
+      const next = sortState.dir === "asc" ? "desc" : sortState.dir === "desc" ? null : "asc";
+      sortState = { col: next ? col : null, dir: next };
+    }
+    renderOrdersTable();
+  });
+});
+
+function updateStats(orders) {
+  document.getElementById("stat-total").textContent = orders.length;
+  const newCount = orders.filter(o => {
+    const s = statusById(o.status_id);
+    return !s || s.name === "Nová";
+  }).length;
+  document.getElementById("stat-new").textContent = newCount;
+  const today = new Date().toDateString();
+  const rev = orders.filter(o => new Date(o.created_at).toDateString() === today)
+                    .reduce((s, o) => s + (o.total_price || 0), 0);
+  document.getElementById("stat-revenue").textContent = `${rev} Kč`;
+}
+
+// ── PRINT ────────────────────────────────────────────
+function printOrders() {
+  const ordersToUse = getFilteredOrders();
+  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const DELIVERY = 20;
+
+  const byGroup = {};
+  const noGroup = [];
+  ordersToUse.forEach(o => {
+    if (o.group_id) { (byGroup[o.group_id] = byGroup[o.group_id] || []).push(o); }
+    else noGroup.push(o);
+  });
+  const segments = [];
+  allGroups.forEach(g => {
+    if (byGroup[g.id] && byGroup[g.id].length) segments.push({ name: g.name, color: g.color, orders: byGroup[g.id] });
+  });
+  if (noGroup.length) segments.push({ name: "Bez kategorie", color: "#888", orders: noGroup });
+
+  const orderRow = (o, num) => {
+    const items = Array.isArray(o.items)
+      ? o.items.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("<br>")
+      : "—";
+    return `<tr>
+      <td>${num}</td>
+      <td>${o.first_name} ${o.last_name}</td>
+      <td>${o.phone}</td>
+      <td>${items}</td>
+      <td>${o.total_price} Kč</td>
+      <td>${o.note || ""}</td>
+    </tr>`;
+  };
+
+  const orderThead = `<thead><tr><th>#</th><th>Jméno</th><th>Telefon</th><th>Položky</th><th>Celkem</th><th>Poznámka</th></tr></thead>`;
+
+  let sec1Bodies = "";
+  if (!segments.length) {
+    sec1Bodies = "<p>Žádné objednávky</p>";
+  } else {
+    segments.forEach(seg => {
+      sec1Bodies += `
+        <div class="category-block">
+          <h3 style="color:${seg.color}">${seg.name} — ${seg.orders.length} objednávek</h3>
+          <table>${orderThead}<tbody>
+            ${seg.orders.map((o, i) => orderRow(o, seg.orders.length - i)).join("")}
+          </tbody></table>
+        </div>`;
+    });
+  }
+
+  const section1 = `
+    <div class="print-section-1">
+      <h2>Tátovy saláty — objednávky — ${today}</h2>
+      ${sec1Bodies}
+    </div>`;
+
+  const itemMap = {};
+  ordersToUse.forEach(o => {
+    if (!Array.isArray(o.items)) return;
+    o.items.forEach(it => {
+      const key = `${it.name}||${it.variant || ""}`;
+      if (!itemMap[key]) itemMap[key] = { name: it.name, variant: it.variant || "", qty: 0, price: it.price || 0 };
+      itemMap[key].qty += it.qty || 0;
+    });
+  });
+  const summRows = Object.values(itemMap).sort((a, b) => a.name.localeCompare(b.name));
+  const totalQty      = summRows.reduce((s, r) => s + r.qty, 0);
+  const totalGoods    = summRows.reduce((s, r) => s + r.qty * r.price, 0);
+  const totalOrders   = ordersToUse.length;
+  const totalDelivery = totalOrders * DELIVERY;
+  const grandTotal    = ordersToUse.reduce((s, o) => s + (o.total_price || 0), 0);
+
+  const section2 = `
+    <div class="print-section-2" style="page-break-before:always">
+      <h2>Souhrn objednaného zboží — ${today}</h2>
+      <table>
+        <thead><tr><th>Název položky</th><th>Varianta</th><th>Počet ks</th><th>Cena/ks</th><th>Celková cena</th></tr></thead>
+        <tbody>
+          ${summRows.map(r => `<tr>
+            <td>${r.name}</td><td>${r.variant || "—"}</td>
+            <td>${r.qty} ks</td><td>${r.price} Kč</td>
+            <td><strong>${r.qty * r.price} Kč</strong></td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="2"><strong>CELKEM</strong></td><td>${totalQty} ks</td><td></td><td><strong>${totalGoods} Kč</strong></td></tr>
+        </tfoot>
+      </table>
+      <table style="margin-top:16px;width:300px;margin-left:auto">
+        <tr><td>Počet objednávek</td><td>${totalOrders}</td></tr>
+        <tr><td>Zboží celkem</td><td>${totalGoods} Kč</td></tr>
+        <tr><td>Doprava (${totalOrders} × ${DELIVERY} Kč)</td><td>${totalDelivery} Kč</td></tr>
+        <tr><td><strong>CELKEM S DOPRAVOU</strong></td><td><strong>${grandTotal} Kč</strong></td></tr>
+      </table>
+    </div>`;
+
+  const detailSections = segments.map(seg => {
+    const catTotal = seg.orders.reduce((s, o) => s + (o.total_price || 0), 0);
+    return `
+      <div class="print-section-detail" style="page-break-before:always">
+        <h2>${seg.name} — ${today}</h2>
+        <table>${orderThead}<tbody>
+          ${seg.orders.map((o, i) => orderRow(o, seg.orders.length - i)).join("")}
+        </tbody></table>
+        <p>Počet objednávek: <strong>${seg.orders.length}</strong> | Celková suma: <strong>${catTotal} Kč</strong></p>
+      </div>`;
+  }).join("");
+
+  document.getElementById("print-area").innerHTML = section1 + section2 + detailSections;
+  window.print();
+}
+
+// ── ORDER ACTIONS ─────────────────────────────────────
+async function assignGroup(orderId, groupId) {
+  const val = groupId === "" ? null : groupId;
+  const { error } = await db.from("orders").update({ group_id: val }).eq("id", orderId);
+  if (error) { alert("Chyba: " + error.message); return; }
+  const o = allOrders.find(x => x.id === orderId);
+  if (o) o.group_id = val;
+  renderOrdersTable();
+}
+
+async function deleteSingleOrder(id) {
+  if (!confirm("Smazat tuto objednávku?")) return;
+  const { error } = await db.from("orders").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); return; }
+  allOrders = allOrders.filter(x => x.id !== id);
+  selectedIds.delete(id);
+  updateStats(allOrders);
+  updateActionBar();
+  renderOrdersTable();
+}
+
+// ── BULK SELECTION ────────────────────────────────────
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  updateActionBar();
+  const allRows = document.querySelectorAll(".row-cb");
+  const selAll = document.getElementById("select-all");
+  selAll.checked = allRows.length > 0 && [...allRows].every(cb => cb.checked);
+}
+
+function toggleSelectAll(masterCb) {
+  const rows = document.querySelectorAll(".row-cb");
+  rows.forEach(cb => {
+    cb.checked = masterCb.checked;
+    const id = cb.dataset.id;
+    if (masterCb.checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+  });
+  updateActionBar();
+}
+
+function updateActionBar() {
+  const bar = document.getElementById("action-bar");
+  const count = selectedIds.size;
+  bar.classList.toggle("visible", count > 0);
+  document.getElementById("sel-count").textContent = `Vybráno: ${count}`;
+}
+
+async function bulkAssignGroup() {
+  const sel = document.getElementById("bulk-group-select");
+  const val = sel.value;
+  if (!val) return;
+  const groupId = val === "__none__" ? null : val;
+  const ids = [...selectedIds];
+  const { error } = await db.from("orders").update({ group_id: groupId }).in("id", ids);
+  if (error) { alert("Chyba: " + error.message); sel.value = ""; return; }
+  ids.forEach(id => { const o = allOrders.find(x => x.id === id); if (o) o.group_id = groupId; });
+  sel.value = "";
+  renderOrdersTable();
+}
+
+async function bulkDelete() {
+  const ids = [...selectedIds];
+  if (!ids.length) return;
+  if (!confirm(`Opravdu smazat ${ids.length} objednávek?`)) return;
+  const { error } = await db.from("orders").delete().in("id", ids);
+  if (error) { alert("Chyba: " + error.message); return; }
+  allOrders = allOrders.filter(x => !ids.includes(x.id));
+  selectedIds.clear();
+  updateStats(allOrders);
+  updateActionBar();
+  renderOrdersTable();
+}
+
+// ── BLOCK IP ─────────────────────────────────────────
+async function blockIp(ip) {
+  if (!confirm(`Blokovat IP ${ip}?\nUživatel již nebude moci objednávat.`)) return;
+  const reason = prompt("Důvod blokace (volitelné):") || "";
+  const { error } = await db.from("blocked_ips").insert({ ip, reason: reason.trim() || null });
+  if (error) { alert("Chyba: " + error.message); return; }
+  blockedIpSet.add(ip);
+  renderOrdersTable();
+  updateBlockedBadge();
+}
+
+// ── BLOCKED IPs TAB ───────────────────────────────────
+async function loadBlockedIps() {
+  const tbody = document.getElementById("blocked-body");
+  tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Načítám…</td></tr>`;
+  const { data, error } = await db.from("blocked_ips").select("*").order("blocked_at", { ascending: false });
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state" style="color:#c0392b">Chyba: ${error.message}</td></tr>`;
+    return;
+  }
+  allBlockedIps = data || [];
+  renderBlockedTable();
+  updateBlockedBadge();
+}
+
+function renderBlockedTable() {
+  const tbody = document.getElementById("blocked-body");
+  if (!allBlockedIps.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Žádné blokované IP</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allBlockedIps.map(b => {
+    const date = new Date(b.blocked_at).toLocaleString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+    return `<tr>
+      <td><span class="ip-text">${b.ip}</span></td>
+      <td>${b.reason || "—"}</td>
+      <td style="white-space:nowrap">${date}</td>
+      <td><button class="btn-done" onclick="unblockIp('${b.id}', '${b.ip}', this)">Odblokovat</button></td>
+    </tr>`;
+  }).join("");
+}
+
+async function unblockIp(id, ip, btn) {
+  btn.disabled = true; btn.textContent = "…";
+  const { error } = await db.from("blocked_ips").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); btn.disabled = false; btn.textContent = "Odblokovat"; return; }
+  allBlockedIps = allBlockedIps.filter(x => x.id !== id);
+  blockedIpSet.delete(ip);
+  renderBlockedTable();
+  updateBlockedBadge();
+  renderOrdersTable();
+}
+
+function updateBlockedBadge() {
+  const badge = document.getElementById("blocked-badge");
+  const count = blockedIpSet.size;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "" : "none";
+}
+
+// ── PRODUCTS ──────────────────────────────────────────
+async function loadProductsList() {
+  document.getElementById("products-body").innerHTML = `<tr><td colspan="5" class="empty-state">Načítám…</td></tr>`;
+  const { data, error } = await db.from("products").select("*").order("category").order("name");
+  if (error) {
+    document.getElementById("products-body").innerHTML = `<tr><td colspan="5" class="empty-state" style="color:#c0392b">Chyba: ${error.message}</td></tr>`;
+    return;
+  }
+  allProducts = data || [];
+  renderProductsTable();
+}
+
+function renderProductsTable() {
+  const tbody = document.getElementById("products-body");
+  const search = document.getElementById("prod-search").value.toLowerCase();
+  const catFilter = document.getElementById("prod-cat-filter").value;
+  const filtered = allProducts.filter(p =>
+    (!search || p.name.toLowerCase().includes(search)) &&
+    (!catFilter || p.category === catFilter)
+  );
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Žádné produkty</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(p => {
+    const variants = Array.isArray(p.variants) ? p.variants : [];
+    const variantsStr = variants.map(v => `${v.label}: ${v.price} Kč`).join(" / ") || "—";
+    const isActive = p.active !== false;
+    return `<tr>
+      <td style="font-weight:600">${p.name}</td>
+      <td>${p.category}</td>
+      <td style="font-size:.85rem;color:var(--gray-600)">${variantsStr}</td>
+      <td>
+        <label class="toggle" title="${isActive ? "Skladem" : "Nedostupné"}">
+          <input type="checkbox" ${isActive ? "checked" : ""} onchange="toggleActive('${p.id}', this.checked, this)" />
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td style="white-space:nowrap">
+        <button class="btn-done" onclick="openEditModal('${p.id}')">Upravit</button>
+        <button class="btn-trash" onclick="deleteProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}')" title="Smazat produkt">🗑</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function toggleActive(id, active, checkbox) {
+  checkbox.disabled = true;
+  const { error } = await db.from("products").update({ active }).eq("id", id);
+  if (error) { alert("Chyba: " + error.message); checkbox.checked = !active; }
+  else { const p = allProducts.find(x => x.id === id); if (p) p.active = active; }
+  checkbox.disabled = false;
+}
+
+async function deleteProduct(id, name) {
+  if (!confirm(`Smazat "${name}"? Tato akce je nevratná.`)) return;
+  const { error } = await db.from("products").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); return; }
+  allProducts = allProducts.filter(x => x.id !== id);
+  renderProductsTable();
+}
+
+function openNewProductModal() {
+  document.getElementById("pf-id").value = "";
+  document.getElementById("pf-name").value = "";
+  document.getElementById("pf-category").value = "Saláty";
+  document.getElementById("pf-desc").value = "";
+  document.getElementById("pf-active").checked = true;
+  document.getElementById("pf-variants").innerHTML = "";
+  document.getElementById("prod-modal-title").textContent = "Nový produkt";
+  document.getElementById("prod-save-btn").textContent = "Vytvořit";
+  document.getElementById("prod-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function openEditModal(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById("pf-id").value = p.id;
+  document.getElementById("pf-name").value = p.name;
+  document.getElementById("pf-category").value = p.category;
+  document.getElementById("pf-desc").value = p.description || "";
+  document.getElementById("pf-active").checked = p.active !== false;
+  const vl = document.getElementById("pf-variants");
+  vl.innerHTML = "";
+  (Array.isArray(p.variants) ? p.variants : []).forEach(v => addVariantRow(v.label, v.price));
+  document.getElementById("prod-modal-title").textContent = "Upravit produkt";
+  document.getElementById("prod-save-btn").textContent = "Uložit";
+  document.getElementById("prod-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function addVariantRow(label = "", price = "") {
+  const row = document.createElement("div");
+  row.className = "variant-row";
+  row.innerHTML = `
+    <input type="text" placeholder="Label (např. 1 kg)" value="${label}" class="vr-label" required />
+    <input type="number" placeholder="Cena Kč" value="${price}" class="vr-price" min="0" required />
+    <button type="button" class="rm-btn" onclick="this.closest('.variant-row').remove()">✕</button>`;
+  document.getElementById("pf-variants").appendChild(row);
+}
+
+function closeEditModal() {
+  document.getElementById("prod-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("prod-modal-close").addEventListener("click", closeEditModal);
+document.getElementById("prod-modal-cancel").addEventListener("click", closeEditModal);
+document.getElementById("prod-modal").addEventListener("click", function(e) { if (e.target === this) closeEditModal(); });
+
+async function saveProduct(e) {
+  e.preventDefault();
+  const btn = document.getElementById("prod-save-btn");
+  btn.disabled = true; btn.textContent = "Ukládám…";
+  const id = document.getElementById("pf-id").value;
+  const variants = [...document.querySelectorAll("#pf-variants .variant-row")].map(row => ({
+    label: row.querySelector(".vr-label").value.trim(),
+    price: parseInt(row.querySelector(".vr-price").value) || 0,
+  }));
+  const payload = {
+    name: document.getElementById("pf-name").value.trim(),
+    category: document.getElementById("pf-category").value,
+    description: document.getElementById("pf-desc").value.trim(),
+    active: document.getElementById("pf-active").checked,
+    variants,
+  };
+
+  if (id) {
+    // UPDATE
+    const { error } = await db.from("products").update(payload).eq("id", id);
+    btn.disabled = false; btn.textContent = "Uložit";
+    if (error) { alert("Chyba při ukládání: " + error.message); return; }
+    const idx = allProducts.findIndex(x => x.id === id);
+    if (idx !== -1) allProducts[idx] = { ...allProducts[idx], ...payload };
+  } else {
+    // INSERT
+    const { data, error } = await db.from("products").insert(payload).select().single();
+    btn.disabled = false; btn.textContent = "Vytvořit";
+    if (error) { alert("Chyba při vytváření: " + error.message); return; }
+    allProducts.push(data);
+    allProducts.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  }
+
+  renderProductsTable();
+  closeEditModal();
+}
+
+// ── COLUMN VISIBILITY ─────────────────────────────────
+const COLUMNS = [
+  { key: "num",      label: "#",         default: true },
+  { key: "cas",      label: "Čas",       default: true },
+  { key: "jmeno",    label: "Jméno",     default: true },
+  { key: "telefon",  label: "Telefon",   default: true },
+  { key: "polozky",  label: "Položky",   default: true },
+  { key: "celkem",   label: "Celkem",    default: true },
+  { key: "poznamka", label: "Poznámka",  default: false },
+  { key: "kategorie",label: "Kategorie", default: true },
+  { key: "status",   label: "Status",    default: true },
+  { key: "ip",       label: "IP",        default: false },
+  { key: "akce",     label: "Akce",      default: true },
+];
+const COL_STORAGE_KEY = "admin_col_visibility";
+
+function loadColVisibility() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COL_STORAGE_KEY) || "null");
+    if (saved && typeof saved === "object") return saved;
+  } catch {}
+  const def = {};
+  COLUMNS.forEach(c => { def[c.key] = c.default; });
+  return def;
+}
+
+let colVisibility = loadColVisibility();
+
+function saveColVisibility() {
+  localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(colVisibility));
+}
+
+function applyColVisibility() {
+  COLUMNS.forEach(({ key }) => {
+    const visible = colVisibility[key] !== false;
+    document.querySelectorAll(`[data-column="${key}"]`).forEach(el => {
+      el.style.display = visible ? "" : "none";
+    });
+  });
+}
+
+function buildColDropdown() {
+  const panel = document.getElementById("col-dropdown");
+  panel.innerHTML = COLUMNS.map(c => {
+    const checked = colVisibility[c.key] !== false ? "checked" : "";
+    return `<label class="col-dropdown-row">
+      <input type="checkbox" ${checked} data-colkey="${c.key}" onchange="onColToggle('${c.key}', this.checked)" />
+      ${c.label}
+    </label>`;
+  }).join("");
+}
+
+function onColToggle(key, checked) {
+  colVisibility[key] = checked;
+  saveColVisibility();
+  applyColVisibility();
+}
+
+function toggleColDropdown() {
+  const panel = document.getElementById("col-dropdown");
+  panel.classList.toggle("open");
+}
+
+document.addEventListener("click", function(e) {
+  const wrap = document.getElementById("col-toggle-btn")?.closest(".col-toggle-wrap");
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById("col-dropdown").classList.remove("open");
+  }
+});
+
+// Init column UI on DOMContentLoaded (appended to existing listener below)
+document.addEventListener("DOMContentLoaded", () => {
+  buildColDropdown();
+  applyColVisibility();
+});
+</script>
+<!-- PRINT AREA — hidden on screen, only shown on print -->
+<div id="print-area"></div>
+
+</body>
+</html>
