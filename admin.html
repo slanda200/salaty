@@ -228,8 +228,13 @@
     <div class="admin-actions">
       <button class="btn-outline" onclick="refreshCurrentTab()">↻ Obnovit</button>
       <button class="btn-outline" id="header-print" onclick="printOrders()" style="display:none">🖨 Vytisknout</button>
+      <button class="btn-outline" id="orders-toggle-btn" onclick="toggleOrders()" style="display:none"></button>
     </div>
   </header>
+
+  <div id="orders-disabled-banner" style="display:none;background:#fdecea;border-bottom:2px solid #e74c3c;padding:12px 24px;font-weight:700;color:#c0392b;font-size:.95rem">
+    ⚠ Objednávky jsou aktuálně vypnuté — zákazníci nemohou dokončit objednávku.
+  </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="orders">📋 Objednávky</button>
@@ -424,13 +429,51 @@ let currentTab    = "orders";
 let selectedIds   = new Set();
 let sortState     = { col: null, dir: null };
 
+// ── SHOP SETTINGS ─────────────────────────────────────
+let ordersEnabled = true;
+
+async function loadShopSettings() {
+  const { data } = await db.from("shop_settings").select("*").eq("id", 1).single();
+  if (data) {
+    ordersEnabled = data.orders_enabled;
+    updateOrdersToggleBtn();
+  }
+}
+
+function updateOrdersToggleBtn() {
+  const btn = document.getElementById("orders-toggle-btn");
+  const banner = document.getElementById("orders-disabled-banner");
+  btn.style.display = "";
+  if (ordersEnabled) {
+    btn.textContent = "⏸ Vypnout objednávky";
+    btn.style.background = "";
+    btn.style.color = "#c0392b";
+    btn.style.borderColor = "#c0392b";
+    banner.style.display = "none";
+  } else {
+    btn.textContent = "▶ Zapnout objednávky";
+    btn.style.background = "var(--green)";
+    btn.style.color = "#fff";
+    btn.style.borderColor = "var(--green)";
+    banner.style.display = "";
+  }
+}
+
+async function toggleOrders() {
+  const newVal = !ordersEnabled;
+  const { error } = await db.from("shop_settings").update({ orders_enabled: newVal }).eq("id", 1);
+  if (error) { alert("Chyba: " + error.message); return; }
+  ordersEnabled = newVal;
+  updateOrdersToggleBtn();
+}
+
 // ── PIN ───────────────────────────────────────────────
 function checkPin() {
   if (document.getElementById("pin-input").value.trim() === ADMIN_PIN) {
     document.getElementById("pin-overlay").style.display = "none";
     document.getElementById("admin-content").style.display = "block";
     document.getElementById("header-print").style.display = "";
-    Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
+    Promise.all([loadGroups(), loadStatuses(), loadShopSettings()]).then(loadOrders);
   } else {
     document.getElementById("pin-error").style.display = "block";
     document.getElementById("pin-input").value = "";

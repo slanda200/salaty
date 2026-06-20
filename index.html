@@ -17,6 +17,10 @@
   </div>
 </nav>
 
+<div id="orders-closed-banner" style="display:none;background:#fff3cd;border-bottom:2px solid #f0ad4e;padding:10px 24px;text-align:center;font-weight:600;color:#856404;font-size:.95rem">
+  🚫 Objednávky aktuálně nepřijímáme.
+</div>
+
 <div class="hero">
   <h1>Tátovy saláty 🥗</h1>
 </div>
@@ -353,8 +357,16 @@ document.addEventListener("keydown", function(e) {
 });
 
 // ── Init ──────────────────────────────────────────────
+async function checkShopOpen() {
+  const { data } = await db.from("shop_settings").select("orders_enabled").eq("id", 1).single();
+  if (data && data.orders_enabled === false) {
+    document.getElementById("orders-closed-banner").style.display = "";
+  }
+}
+
 updateCartCount();
 loadProducts();
+checkShopOpen();
 </script>
 </body>
 </html>

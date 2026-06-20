@@ -37,6 +37,12 @@
     </div>
   </section>
 
+  <div id="orders-closed-card" style="display:none;text-align:center;padding:32px 24px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:24px">
+    <div style="font-size:2.5rem;margin-bottom:12px">🚫</div>
+    <p id="orders-closed-msg" style="font-size:1.05rem;font-weight:600;color:var(--gray-800);margin-bottom:16px"></p>
+    <a href="index.html" style="display:inline-block;color:var(--green);font-weight:700">← Zpět na výběr</a>
+  </div>
+
   <section id="order-section">
     <h2>Kontakt</h2>
     <form class="order-form" id="order-form" onsubmit="submitOrder(event)">
@@ -150,6 +156,15 @@ async function submitOrder(e) {
   btn.disabled = true;
   btn.textContent = "Odesílám…";
 
+  // Race condition check — objednávky mohly být mezitím vypnuty
+  const { data: settings } = await db.from("shop_settings").select("orders_enabled,closed_message").eq("id", 1).single();
+  if (settings && settings.orders_enabled === false) {
+    btn.disabled = false;
+    btn.textContent = "Odeslat objednávku";
+    showOrdersClosed(settings.closed_message);
+    return;
+  }
+
   // Zjisti IP
   let userIp = null;
   try {
@@ -217,7 +232,21 @@ async function submitOrder(e) {
   document.getElementById("cart-count").textContent = "0";
 }
 
+function showOrdersClosed(message) {
+  document.getElementById("orders-closed-msg").textContent = message || "Objednávky aktuálně nepřijímáme.";
+  document.getElementById("orders-closed-card").style.display = "";
+  document.getElementById("order-section").style.display = "none";
+}
+
+async function checkShopOpen() {
+  const { data } = await db.from("shop_settings").select("orders_enabled,closed_message").eq("id", 1).single();
+  if (data && data.orders_enabled === false) {
+    showOrdersClosed(data.closed_message);
+  }
+}
+
 renderCart();
+checkShopOpen();
 </script>
 </body>
 </html>
