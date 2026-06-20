@@ -255,13 +255,6 @@
       <!-- Filters -->
       <div class="filter-bar">
         <input type="text" id="ord-search" placeholder="Jméno nebo telefon…" oninput="renderOrdersTable()" />
-        <select id="ord-status-filter" onchange="renderOrdersTable()">
-          <option value="">Všechny statusy</option>
-        </select>
-        <select id="ord-group-filter" onchange="renderOrdersTable()">
-          <option value="">Všechny kategorie</option>
-          <option value="__none__">Bez kategorie</option>
-        </select>
         <button class="btn-action" onclick="openGroupsModal()">🏷 Spravovat kategorie</button>
         <button class="btn-action" onclick="openStatusesModal()">🔖 Spravovat statusy</button>
         <div class="col-toggle-wrap">
@@ -510,12 +503,6 @@ async function loadGroups() {
 }
 
 function rebuildGroupSelects() {
-  const ordFilter = document.getElementById("ord-group-filter");
-  const prevOrdVal = ordFilter.value;
-  ordFilter.innerHTML = `<option value="">Všechny kategorie</option><option value="__none__">Bez kategorie</option>`;
-  allGroups.forEach(g => { ordFilter.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
-  ordFilter.value = prevOrdVal;
-
   const bulk = document.getElementById("bulk-group-select");
   bulk.innerHTML = `<option value="">Přiřadit kategorii…</option><option value="__none__">— Odebrat kategorii —</option>`;
   allGroups.forEach(g => { bulk.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
@@ -589,16 +576,8 @@ async function deleteGroup(id) {
 async function loadStatuses() {
   const { data } = await db.from("order_statuses").select("*").order("name");
   allStatuses = data || [];
-  rebuildStatusFilter();
 }
 
-function rebuildStatusFilter() {
-  const sel = document.getElementById("ord-status-filter");
-  const prev = sel.value;
-  sel.innerHTML = `<option value="">Všechny statusy</option>`;
-  allStatuses.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.name}</option>`; });
-  sel.value = prev;
-}
 
 function statusById(id) { return allStatuses.find(s => s.id === id) || null; }
 
@@ -644,7 +623,6 @@ async function addStatus() {
   if (error) { alert("Chyba: " + error.message); return; }
   allStatuses.push(data);
   allStatuses.sort((a, b) => a.name.localeCompare(b.name));
-  rebuildStatusFilter();
   renderStatusesList();
   renderOrdersTable();
   document.getElementById("new-status-name").value = "";
@@ -661,7 +639,6 @@ async function deleteStatus(id) {
   const { error } = await db.from("order_statuses").delete().eq("id", id);
   if (error) { alert("Chyba: " + error.message); return; }
   allStatuses = allStatuses.filter(x => x.id !== id);
-  rebuildStatusFilter();
   renderStatusesList();
   renderOrdersTable();
 }
@@ -787,18 +764,10 @@ function orderRowHTML(o) {
 
 function getFilteredOrders() {
   const search = document.getElementById("ord-search").value.toLowerCase();
-  const statusFilter = document.getElementById("ord-status-filter").value;
-  const groupFilter = document.getElementById("ord-group-filter").value;
-
   return allOrders.filter(o => {
     const name = `${o.first_name} ${o.last_name}`.toLowerCase();
     const phone = (o.phone || "").toLowerCase();
-    const matchSearch = !search || name.includes(search) || phone.includes(search);
-    const matchStatus = !statusFilter || o.status_id === statusFilter;
-    const matchGroup = !groupFilter
-      ? true
-      : groupFilter === "__none__" ? !o.group_id : o.group_id === groupFilter;
-    return matchSearch && matchStatus && matchGroup;
+    return !search || name.includes(search) || phone.includes(search);
   });
 }
 
