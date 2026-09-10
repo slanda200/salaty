@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Košík – Tátovy saláty</title>
+  <title>Košík – Saláty od Kašši</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <nav>
   <div class="nav-inner">
-    <a href="index.html" class="logo">Tátovy saláty 🥗</a>
+    <a href="index.html" class="logo">Saláty od Kašši 🥗</a>
     <a href="cart.html" class="cart-btn">
       🛒 Košík <span class="cart-count" id="cart-count">0</span>
     </a>
@@ -30,7 +30,7 @@
         <div class="cart-items" id="cart-items"></div>
         <hr class="cart-divider" />
         <div class="cart-summary">
-          <div class="cart-row"><span>Doprava</span><span>20 Kč</span></div>
+          <div class="cart-row"><span>Doprava</span><span id="cart-delivery">0 Kč</span></div>
           <div class="cart-row cart-total"><span>Celkem</span><span id="cart-total">0 Kč</span></div>
         </div>
       </div>
@@ -86,7 +86,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const DELIVERY = 20;
+const DELIVERY_PER_ITEM = 10;
 
 function getCart() {
   try { return JSON.parse(localStorage.getItem("cart") || "[]"); } catch { return []; }
@@ -110,9 +110,11 @@ function renderCart() {
   document.getElementById("order-section").style.display = "block";
 
   let subtotal = 0;
+  let totalQty = 0;
   document.getElementById("cart-items").innerHTML = cart.map((item, idx) => {
     const line = item.price * item.quantity;
     subtotal += line;
+    totalQty += item.quantity;
     return `
       <div class="cart-item">
         <div>
@@ -130,7 +132,9 @@ function renderCart() {
     `;
   }).join("");
 
-  document.getElementById("cart-total").textContent = `${subtotal + DELIVERY} Kč`;
+  const delivery = totalQty * DELIVERY_PER_ITEM;
+  document.getElementById("cart-delivery").textContent = `${delivery} Kč`;
+  document.getElementById("cart-total").textContent = `${subtotal + delivery} Kč`;
 }
 
 function changeQty(idx, delta) {
@@ -191,6 +195,8 @@ async function submitOrder(e) {
   }
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const totalQty = cart.reduce((s, i) => s + i.quantity, 0);
+  const delivery = totalQty * DELIVERY_PER_ITEM;
   const items = cart.map(i => ({
     productId: i.productId,
     name: i.productName,
@@ -205,7 +211,7 @@ async function submitOrder(e) {
     phone:       document.getElementById("phone").value.trim(),
     note:        document.getElementById("note").value.trim(),
     items,
-    total_price: subtotal + DELIVERY,
+    total_price: subtotal + delivery,
     status:      "new",
   }).select().single();
 
