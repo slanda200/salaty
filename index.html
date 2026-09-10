@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Saláty od Kašši</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="theme.js"></script>
 </head>
-<body>
+<body class="shop">
 
 <nav>
   <div class="nav-inner">
     <span class="logo">Saláty od Kašši 🥗</span>
-    <a href="cart.html" class="cart-btn">
-      🛒 Košík <span class="cart-count" id="cart-count">0</span>
-    </a>
+    <div class="nav-right">
+      <button class="theme-toggle" id="theme-toggle" title="Přepnout tmavý režim" aria-label="Přepnout tmavý režim">☀</button>
+      <a href="cart.html" class="cart-btn">
+        🛒 Košík <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
   </div>
 </nav>
 
@@ -22,7 +26,7 @@
 </div>
 
 <div class="hero">
-  <h1>Saláty od Kašši 🥗</h1>
+  <h1>Saláty od Kašši</h1>
 </div>
 
 <!-- Mobile category pills -->

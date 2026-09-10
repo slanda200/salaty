@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -22,6 +24,38 @@ body {
   color: var(--gray-800);
   background: #fafafa;
   line-height: 1.5;
+}
+
+/* ── ZÁKAZNICKÁ STRÁNKA: minimalistický vzhled + dark mode ──
+   Tyto proměnné a pravidla platí jen na body.shop (index.html)
+   a body.cart (cart.html) — admin.html se jich nedotýká. */
+body.shop, body.cart {
+  --bg: #fbfbf9;
+  --surface: #ffffff;
+  --line: #e6e5e0;
+  --ink: #1c1e1b;
+  --ink-soft: #6b6f68;
+  --accent: #3f7856;
+  --accent-dark: #2f5c42;
+  --accent-tint: #eaf2ec;
+  --shop-shadow: 0 1px 2px rgba(28,30,27,.04), 0 8px 20px rgba(28,30,27,.05);
+  --shop-radius: 10px;
+
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body.shop[data-theme="dark"], body.cart[data-theme="dark"] {
+  --bg: #15170f;
+  --surface: #1c1f16;
+  --line: #2c3024;
+  --ink: #f1f2ec;
+  --ink-soft: #9a9e8f;
+  --accent: #7fbb95;
+  --accent-dark: #98cca9;
+  --accent-tint: #233426;
+  --shop-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px rgba(0,0,0,.28);
 }
 
 a {
@@ -110,6 +144,81 @@ nav {
   opacity: 0.9;
   max-width: 480px;
   margin: 0 auto;
+}
+
+/* ── ZÁKAZNICKÁ STRÁNKA: nav, hero, tlačítka (přepis jen na shop/cart) ── */
+body.shop nav, body.cart nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+body.shop .nav-inner, body.cart .nav-inner {
+  max-width: 1040px;
+  height: 64px;
+  gap: 16px;
+}
+
+body.shop .logo, body.cart .logo {
+  font-family: "Manrope", -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  font-size: 1.05rem;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+body.shop .cart-btn, body.cart .cart-btn {
+  background: var(--accent);
+}
+
+body.shop .cart-btn:hover, body.cart .cart-btn:hover {
+  background: var(--accent-dark);
+}
+
+body.shop .cart-count, body.cart .cart-count {
+  color: var(--accent);
+}
+
+body.shop .hero, body.cart .hero {
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  padding: 28px 16px 8px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+body.shop .hero h1, body.cart .hero h1 {
+  font-family: "Manrope", -apple-system, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 0;
 }
 
 /* ── MAIN LAYOUT ── */
@@ -248,6 +357,85 @@ h2 {
   padding: 12px 16px;
   background: var(--green-light);
   border-radius: 8px;
+}
+
+/* ── ZÁKAZNICKÁ STRÁNKA: produkty, karty, qty, modal total ── */
+body.shop h2 {
+  font-family: "Manrope", -apple-system, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+body.shop .products-grid {
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--shop-radius);
+  overflow: hidden;
+}
+
+body.shop .product-card {
+  background: var(--surface);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px 16px;
+  gap: 10px;
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><ellipse cx="16" cy="21" rx="12" ry="6" fill="%233f7856" stroke="%231c1e1b" stroke-width="1.2"/><path d="M6 19 Q16 27 26 19" fill="none" stroke="%231c1e1b" stroke-width="1.2"/><circle cx="12" cy="17" r="1.6" fill="%23e0975a"/><circle cx="18" cy="15.5" r="1.4" fill="%23c94f3d"/><circle cx="16" cy="19" r="1.3" fill="%23f0c95a"/></svg>') 16 20, pointer;
+  transition: background 0.15s;
+}
+
+body.shop .product-card:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--accent-tint);
+}
+
+body.shop .product-name {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--ink);
+}
+
+body.shop .product-desc {
+  color: var(--ink-soft);
+}
+
+body.shop .product-price {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+body.shop .product-tag {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+body.shop .qty-btn {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+body.shop .qty-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+body.shop .qty-input {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+body.shop .qty-input:focus {
+  border-color: var(--accent);
+}
+
+body.shop .modal-total {
+  color: var(--ink);
+  background: var(--accent-tint);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── CART ── */
@@ -404,6 +592,61 @@ h2 {
   font-size: 1.4rem;
   margin-bottom: 8px;
 }
+
+/* ── ZÁKAZNICKÁ STRÁNKA: cart, form, submit, confirmation ── */
+body.cart .cart-box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shop-shadow);
+  border-radius: var(--shop-radius);
+}
+
+body.cart .cart-item-name { color: var(--ink); }
+body.cart .cart-item-detail { color: var(--ink-soft); }
+body.cart .cart-divider { border-top-color: var(--line); }
+body.cart .cart-row { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+body.cart .cart-total {
+  color: var(--ink);
+  border-top-color: var(--line);
+  font-variant-numeric: tabular-nums;
+}
+body.cart .cart-total #cart-total,
+body.cart .cart-total span:last-child { color: var(--accent); }
+
+body.cart .order-form {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shop-shadow);
+  border-radius: var(--shop-radius);
+}
+
+body.cart .form-group label { color: var(--ink-soft); }
+
+body.cart .form-group input,
+body.cart .form-group textarea {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body.cart .form-group input:focus,
+body.cart .form-group textarea:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+body.shop .submit-btn, body.cart .submit-btn {
+  background: var(--accent);
+}
+body.shop .submit-btn:hover, body.cart .submit-btn:hover {
+  background: var(--accent-dark);
+}
+
+body.cart #confirmation {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+}
+body.cart #confirmation h3 { color: var(--accent-dark); }
 
 /* ── ADMIN ── */
 .admin-header {
@@ -922,6 +1165,79 @@ tr:hover td {
   z-index: 500;
   white-space: nowrap;
   animation: fadeInOut 2.2s ease forwards;
+}
+
+/* ── ZÁKAZNICKÁ STRÁNKA: sidebar, mobile pills, modal (produkt), tag, toast ── */
+body.shop .sidebar-inner {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  border-radius: var(--shop-radius);
+}
+
+body.shop .sidebar-title {
+  color: var(--ink-soft);
+  border-bottom-color: var(--line);
+}
+
+body.shop .cat-item { color: var(--ink-soft); }
+body.shop .cat-item:hover { background: none; color: var(--ink); }
+body.shop .cat-item.active {
+  background: none;
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+body.shop .cat-count { background: var(--bg); color: var(--ink-soft); }
+body.shop .cat-item.active .cat-count { background: var(--accent); color: #fff; }
+
+body.shop .mobile-cats {
+  background: var(--surface);
+  border-bottom-color: var(--line);
+}
+body.shop .cat-pill {
+  background: var(--bg);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+body.shop .cat-pill span { background: var(--line); }
+body.shop .cat-pill:hover { border-color: var(--accent); color: var(--accent); }
+body.shop .cat-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+body.shop .modal-box {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+}
+body.shop .modal-title { font-family: "Manrope", -apple-system, sans-serif; }
+body.shop .modal-desc { color: var(--ink-soft); }
+body.shop .modal-label { color: var(--ink-soft); }
+body.shop .modal-close { background: var(--bg); color: var(--ink-soft); }
+body.shop .modal-close:hover { background: var(--line); }
+
+body.shop .variant-btn {
+  background: var(--bg);
+  border-color: var(--line);
+  color: var(--ink);
+}
+body.shop .variant-btn:hover { border-color: var(--accent); color: var(--accent); }
+body.shop .variant-btn.active {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+body.shop .product-tag {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+body.shop .flash-toast {
+  background: var(--ink);
+  color: var(--bg);
 }
 
 @keyframes fadeInOut {

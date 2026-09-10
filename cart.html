@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Košík – Saláty od Kašši</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="theme.js"></script>
 </head>
-<body>
+<body class="cart">
 
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="logo">Saláty od Kašši 🥗</a>
-    <a href="cart.html" class="cart-btn">
-      🛒 Košík <span class="cart-count" id="cart-count">0</span>
-    </a>
+    <div class="nav-right">
+      <button class="theme-toggle" id="theme-toggle" title="Přepnout tmavý režim" aria-label="Přepnout tmavý režim">☀</button>
+      <a href="cart.html" class="cart-btn">
+        🛒 Košík <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
   </div>
 </nav>
 
