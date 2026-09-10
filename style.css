@@ -46,7 +46,7 @@ body.shop, body.cart {
   font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-body.shop[data-theme="dark"], body.cart[data-theme="dark"] {
+html[data-theme="dark"] body.shop, html[data-theme="dark"] body.cart {
   --bg: #15170f;
   --surface: #1c1f16;
   --line: #2c3024;
@@ -369,16 +369,13 @@ body.shop h2 {
 }
 
 body.shop .products-grid {
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--shop-radius);
-  overflow: hidden;
+  gap: 14px;
 }
 
 body.shop .product-card {
   background: var(--surface);
-  border-radius: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--shop-radius);
   box-shadow: none;
   padding: 18px 16px;
   gap: 10px;
@@ -390,6 +387,7 @@ body.shop .product-card:hover {
   transform: none;
   box-shadow: none;
   background: var(--accent-tint);
+  border-color: var(--accent);
 }
 
 body.shop .product-name {
