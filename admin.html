@@ -206,14 +206,15 @@
 </head>
 <body>
 
-<!-- PIN overlay -->
+<!-- LOGIN overlay -->
 <div id="pin-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999">
   <div class="pin-box">
     <h2>🔒 Admin</h2>
-    <p>Zadej PIN pro přístup k adminu</p>
-    <input type="password" id="pin-input" maxlength="6" inputmode="numeric" placeholder="••••" />
-    <button class="pin-submit" id="pin-btn">Vstoupit</button>
-    <div class="pin-error" id="pin-error">Špatný PIN, zkus to znovu.</div>
+    <p>Přihlas se ke správě</p>
+    <input type="email" id="login-email" placeholder="Email" style="text-align:left;letter-spacing:normal;font-size:1rem" autocomplete="username" />
+    <input type="password" id="login-password" placeholder="Heslo" style="text-align:left;letter-spacing:normal;font-size:1rem" autocomplete="current-password" />
+    <button class="pin-submit" id="pin-btn">Přihlásit</button>
+    <div class="pin-error" id="pin-error">Špatný email nebo heslo.</div>
   </div>
 </div>
 
@@ -229,6 +230,7 @@
       <button class="btn-outline" onclick="refreshCurrentTab()">↻ Obnovit</button>
       <button class="btn-outline" id="header-print" onclick="printOrders()" style="display:none">🖨 Vytisknout</button>
       <button class="btn-outline" id="orders-toggle-btn" onclick="toggleOrders()" style="display:none"></button>
+      <button class="btn-outline" onclick="logout()">⎋ Odhlásit</button>
     </div>
   </header>
 
@@ -408,7 +410,6 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-const ADMIN_PIN = "1234";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let allOrders     = [];
@@ -460,22 +461,47 @@ async function toggleOrders() {
   updateOrdersToggleBtn();
 }
 
-// ── PIN ───────────────────────────────────────────────
-function checkPin() {
-  if (document.getElementById("pin-input").value.trim() === ADMIN_PIN) {
-    document.getElementById("pin-overlay").style.display = "none";
-    document.getElementById("admin-content").style.display = "block";
-    document.getElementById("header-print").style.display = "";
-    Promise.all([loadGroups(), loadStatuses(), loadShopSettings()]).then(loadOrders);
-  } else {
-    document.getElementById("pin-error").style.display = "block";
-    document.getElementById("pin-input").value = "";
-    document.getElementById("pin-input").focus();
-  }
+// ── LOGIN (Supabase Auth) ──────────────────────────────
+function enterAdmin() {
+  document.getElementById("pin-overlay").style.display = "none";
+  document.getElementById("admin-content").style.display = "block";
+  document.getElementById("header-print").style.display = "";
+  Promise.all([loadGroups(), loadStatuses(), loadShopSettings()]).then(loadOrders);
 }
+
+async function checkPin() {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const btn = document.getElementById("pin-btn");
+  btn.disabled = true;
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  btn.disabled = false;
+  if (error) {
+    document.getElementById("pin-error").style.display = "block";
+    document.getElementById("login-password").value = "";
+    document.getElementById("login-password").focus();
+    return;
+  }
+  enterAdmin();
+}
+
+async function logout() {
+  await db.auth.signOut();
+  location.reload();
+}
+
 document.getElementById("pin-btn").addEventListener("click", checkPin);
-document.getElementById("pin-input").addEventListener("keydown", e => { if (e.key === "Enter") checkPin(); });
-window.addEventListener("load", () => document.getElementById("pin-input").focus());
+document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") checkPin(); });
+
+// Pokud je uživatel už přihlášený (obnovená session), přeskoč rovnou do adminu
+window.addEventListener("load", async () => {
+  const { data } = await db.auth.getSession();
+  if (data.session) {
+    enterAdmin();
+  } else {
+    document.getElementById("login-email").focus();
+  }
+});
 
 // ── TABS ──────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {

@@ -177,14 +177,10 @@ async function submitOrder(e) {
     userIp = json.ip;
   } catch { /* pokračuj bez IP */ }
 
-  // Zkontroluj blokaci
+  // Zkontroluj blokaci (přes bezpečnou funkci — veřejnost nesmí číst celý seznam blokovaných IP)
   if (userIp) {
-    const { data: blocked } = await db
-      .from("blocked_ips")
-      .select("ip")
-      .eq("ip", userIp)
-      .single();
-    if (blocked) {
+    const { data: isBlocked } = await db.rpc("is_ip_blocked", { check_ip: userIp });
+    if (isBlocked) {
       document.getElementById("submit-btn").textContent = "Odeslat objednávku";
       btn.disabled = false;
       const errEl = document.getElementById("order-error");
