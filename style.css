@@ -1249,7 +1249,7 @@ body.shop .flash-toast {
 @media print {
   nav, .hero, #cart-section, #order-section, #confirmation,
   .admin-header, .stats-bar, .btn-done, #pin-overlay,
-  .admin-actions { display: none !important; }
+  .admin-actions, #print-modal { display: none !important; }
 
   body { background: #fff; }
 

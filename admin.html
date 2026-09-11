@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Saláty od Kašši – Admin</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
   <style>
     /* ── TABS ── */
     .tabs { display:flex; border-bottom:2px solid var(--gray-200); background:#fff; padding:0 24px; }
@@ -345,6 +345,15 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── PRINT MODAL ── -->
+<div id="print-modal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal-box" style="max-width:440px">
+    <button class="modal-close" onclick="closePrintModal()">✕</button>
+    <h3>🖨 Vytisknout</h3>
+    <div class="groups-list" id="print-options-list"></div>
+  </div>
 </div>
 
 <!-- ── GROUPS MODAL ── -->
@@ -889,11 +898,9 @@ function updateStats(orders) {
 }
 
 // ── PRINT ────────────────────────────────────────────
-function printOrders() {
-  const ordersToUse = getFilteredOrders();
-  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
-  const DELIVERY_PER_ITEM = 10;
+const DELIVERY_PER_ITEM = 10;
 
+function buildPrintSegments(ordersToUse) {
   const byGroup = {};
   const noGroup = [];
   ordersToUse.forEach(o => {
@@ -905,46 +912,28 @@ function printOrders() {
     if (byGroup[g.id] && byGroup[g.id].length) segments.push({ name: g.name, color: g.color, orders: byGroup[g.id] });
   });
   if (noGroup.length) segments.push({ name: "Bez kategorie", color: "#888", orders: noGroup });
+  return segments;
+}
 
-  const orderRow = (o, num) => {
-    const items = Array.isArray(o.items)
-      ? o.items.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("<br>")
-      : "—";
-    return `<tr>
-      <td>${num}</td>
-      <td>${o.first_name} ${o.last_name}</td>
-      <td>${o.phone}</td>
-      <td>${items}</td>
-      <td>${o.total_price} Kč</td>
-      <td>${o.note || ""}</td>
-    </tr>`;
-  };
+function orderRowHTMLForPrint(o, num) {
+  const items = Array.isArray(o.items)
+    ? o.items.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("<br>")
+    : "—";
+  return `<tr>
+    <td>${num}</td>
+    <td>${o.first_name} ${o.last_name}</td>
+    <td>${o.phone}</td>
+    <td>${items}</td>
+    <td>${o.total_price} Kč</td>
+    <td>${o.note || ""}</td>
+  </tr>`;
+}
 
-  const orderThead = `<thead><tr><th>#</th><th>Jméno</th><th>Telefon</th><th>Položky</th><th>Celkem</th><th>Poznámka</th></tr></thead>`;
+const ORDER_THEAD = `<thead><tr><th>#</th><th>Jméno</th><th>Telefon</th><th>Položky</th><th>Celkem</th><th>Poznámka</th></tr></thead>`;
 
-  let sec1Bodies = "";
-  if (!segments.length) {
-    sec1Bodies = "<p>Žádné objednávky</p>";
-  } else {
-    segments.forEach(seg => {
-      sec1Bodies += `
-        <div class="category-block">
-          <h3 style="color:${seg.color}">${seg.name} — ${seg.orders.length} objednávek</h3>
-          <table>${orderThead}<tbody>
-            ${seg.orders.map((o, i) => orderRow(o, seg.orders.length - i)).join("")}
-          </tbody></table>
-        </div>`;
-    });
-  }
-
-  const section1 = `
-    <div class="print-section-1">
-      <h2>Saláty od Kašši — objednávky — ${today}</h2>
-      ${sec1Bodies}
-    </div>`;
-
+function goodsSummaryHTML(orders, heading) {
   const itemMap = {};
-  ordersToUse.forEach(o => {
+  orders.forEach(o => {
     if (!Array.isArray(o.items)) return;
     o.items.forEach(it => {
       const key = `${it.name}||${it.variant || ""}`;
@@ -955,21 +944,21 @@ function printOrders() {
   const summRows = Object.values(itemMap).sort((a, b) => a.name.localeCompare(b.name));
   const totalQty      = summRows.reduce((s, r) => s + r.qty, 0);
   const totalGoods    = summRows.reduce((s, r) => s + r.qty * r.price, 0);
-  const totalOrders   = ordersToUse.length;
+  const totalOrders   = orders.length;
   const totalDelivery = totalQty * DELIVERY_PER_ITEM;
-  const grandTotal    = ordersToUse.reduce((s, o) => s + (o.total_price || 0), 0);
+  const grandTotal    = orders.reduce((s, o) => s + (o.total_price || 0), 0);
 
-  const section2 = `
-    <div class="print-section-2" style="page-break-before:always">
-      <h2>Souhrn objednaného zboží — ${today}</h2>
+  return `
+    <div class="print-section-2">
+      <h2>${heading}</h2>
       <table>
         <thead><tr><th>Název položky</th><th>Varianta</th><th>Počet ks</th><th>Cena/ks</th><th>Celková cena</th></tr></thead>
         <tbody>
-          ${summRows.map(r => `<tr>
+          ${summRows.length ? summRows.map(r => `<tr>
             <td>${r.name}</td><td>${r.variant || "—"}</td>
             <td>${r.qty} ks</td><td>${r.price} Kč</td>
             <td><strong>${r.qty * r.price} Kč</strong></td>
-          </tr>`).join("")}
+          </tr>`).join("") : `<tr><td colspan="5">Žádné objednávky</td></tr>`}
         </tbody>
         <tfoot>
           <tr><td colspan="2"><strong>CELKEM</strong></td><td>${totalQty} ks</td><td></td><td><strong>${totalGoods} Kč</strong></td></tr>
@@ -982,21 +971,84 @@ function printOrders() {
         <tr><td><strong>CELKEM S DOPRAVOU</strong></td><td><strong>${grandTotal} Kč</strong></td></tr>
       </table>
     </div>`;
+}
 
-  const detailSections = segments.map(seg => {
-    const catTotal = seg.orders.reduce((s, o) => s + (o.total_price || 0), 0);
-    return `
-      <div class="print-section-detail" style="page-break-before:always">
-        <h2>${seg.name} — ${today}</h2>
-        <table>${orderThead}<tbody>
-          ${seg.orders.map((o, i) => orderRow(o, seg.orders.length - i)).join("")}
-        </tbody></table>
-        <p>Počet objednávek: <strong>${seg.orders.length}</strong> | Celková suma: <strong>${catTotal} Kč</strong></p>
-      </div>`;
-  }).join("");
-
-  document.getElementById("print-area").innerHTML = section1 + section2 + detailSections;
+function doPrint(html) {
+  document.getElementById("print-area").innerHTML = html;
+  closePrintModal();
   window.print();
+}
+
+function printOrders() {
+  const ordersToUse = getFilteredOrders();
+  const segments = buildPrintSegments(ordersToUse);
+
+  let optionsHTML = `
+    <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printAllOrders()">📋 Všechny objednávky</button>
+    <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printGoodsSummary()">📦 Souhrn objednaného zboží</button>
+  `;
+  if (segments.length) {
+    optionsHTML += `<div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-600);margin:14px 0 8px">Podle kategorie</div>`;
+    segments.forEach((seg, idx) => {
+      optionsHTML += `<button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printCategorySummary(${idx})">
+        <span class="group-badge" style="background:${seg.color};margin-right:6px">${seg.name}</span> (${seg.orders.length})
+      </button>`;
+    });
+  }
+
+  document.getElementById("print-options-list").innerHTML = optionsHTML;
+  window._printSegments = segments;
+  window._printOrdersToUse = ordersToUse;
+
+  document.getElementById("print-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function closePrintModal() {
+  document.getElementById("print-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("print-modal").addEventListener("click", function(e) {
+  if (e.target === this) closePrintModal();
+});
+
+function printAllOrders() {
+  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const segments = window._printSegments || [];
+
+  let body = "";
+  if (!segments.length) {
+    body = "<p>Žádné objednávky</p>";
+  } else {
+    segments.forEach(seg => {
+      body += `
+        <div class="category-block">
+          <h3 style="color:${seg.color}">${seg.name} — ${seg.orders.length} objednávek</h3>
+          <table>${ORDER_THEAD}<tbody>
+            ${seg.orders.map((o, i) => orderRowHTMLForPrint(o, seg.orders.length - i)).join("")}
+          </tbody></table>
+        </div>`;
+    });
+  }
+
+  doPrint(`
+    <div class="print-section-1">
+      <h2>Saláty od Kašši — objednávky — ${today}</h2>
+      ${body}
+    </div>`);
+}
+
+function printGoodsSummary() {
+  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const orders = window._printOrdersToUse || [];
+  doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`));
+}
+
+function printCategorySummary(idx) {
+  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const seg = (window._printSegments || [])[idx];
+  if (!seg) return;
+  doPrint(goodsSummaryHTML(seg.orders, `${seg.name} — souhrn zboží — ${today}`));
 }
 
 // ── ORDER ACTIONS ─────────────────────────────────────
