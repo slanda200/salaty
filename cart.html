@@ -205,7 +205,10 @@ async function submitOrder(e) {
     price: i.price,
   }));
 
-  const { data: newOrder, error } = await db.from("orders").insert({
+  const newOrderId = crypto.randomUUID();
+
+  const { error } = await db.from("orders").insert({
+    id:          newOrderId,
     first_name:  document.getElementById("first_name").value.trim(),
     last_name:   document.getElementById("last_name").value.trim(),
     phone:       document.getElementById("phone").value.trim(),
@@ -213,7 +216,7 @@ async function submitOrder(e) {
     items,
     total_price: subtotal + delivery,
     status:      "new",
-  }).select().single();
+  });
 
   if (error) {
     alert("Chyba při odesílání: " + error.message);
@@ -223,9 +226,9 @@ async function submitOrder(e) {
   }
 
   // Ulož IP
-  if (userIp && newOrder) {
+  if (userIp) {
     await db.from("order_ips").insert({
-      order_id:   newOrder.id,
+      order_id:   newOrderId,
       ip:         userIp,
       user_agent: navigator.userAgent,
     });
