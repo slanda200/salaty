@@ -931,7 +931,7 @@ function orderRowHTMLForPrint(o, num) {
 
 const ORDER_THEAD = `<thead><tr><th>#</th><th>Jméno</th><th>Telefon</th><th>Položky</th><th>Celkem</th><th>Poznámka</th></tr></thead>`;
 
-function goodsSummaryHTML(orders, heading) {
+function goodsSummaryHTML(orders, heading, pageBreak) {
   const itemMap = {};
   orders.forEach(o => {
     if (!Array.isArray(o.items)) return;
@@ -942,14 +942,11 @@ function goodsSummaryHTML(orders, heading) {
     });
   });
   const summRows = Object.values(itemMap).sort((a, b) => a.name.localeCompare(b.name));
-  const totalQty      = summRows.reduce((s, r) => s + r.qty, 0);
-  const totalGoods    = summRows.reduce((s, r) => s + r.qty * r.price, 0);
-  const totalOrders   = orders.length;
-  const totalDelivery = totalQty * DELIVERY_PER_ITEM;
-  const grandTotal    = orders.reduce((s, o) => s + (o.total_price || 0), 0);
+  const totalQty   = summRows.reduce((s, r) => s + r.qty, 0);
+  const totalGoods = summRows.reduce((s, r) => s + r.qty * r.price, 0);
 
   return `
-    <div class="print-section-2">
+    <div class="print-section-2"${pageBreak ? ' style="page-break-before:always"' : ""}>
       <h2>${heading}</h2>
       <table>
         <thead><tr><th>Název položky</th><th>Varianta</th><th>Počet ks</th><th>Cena/ks</th><th>Celková cena</th></tr></thead>
@@ -964,12 +961,6 @@ function goodsSummaryHTML(orders, heading) {
           <tr><td colspan="2"><strong>CELKEM</strong></td><td>${totalQty} ks</td><td></td><td><strong>${totalGoods} Kč</strong></td></tr>
         </tfoot>
       </table>
-      <table style="margin-top:16px;width:300px;margin-left:auto">
-        <tr><td>Počet objednávek</td><td>${totalOrders}</td></tr>
-        <tr><td>Zboží celkem</td><td>${totalGoods} Kč</td></tr>
-        <tr><td>Doprava (${totalQty} ks × ${DELIVERY_PER_ITEM} Kč)</td><td>${totalDelivery} Kč</td></tr>
-        <tr><td><strong>CELKEM S DOPRAVOU</strong></td><td><strong>${grandTotal} Kč</strong></td></tr>
-      </table>
     </div>`;
 }
 
@@ -983,18 +974,11 @@ function printOrders() {
   const ordersToUse = getFilteredOrders();
   const segments = buildPrintSegments(ordersToUse);
 
-  let optionsHTML = `
+  const optionsHTML = `
     <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printAllOrders()">📋 Všechny objednávky</button>
     <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printGoodsSummary()">📦 Souhrn objednaného zboží</button>
+    <button type="button" class="btn-action" style="width:100%;text-align:left" onclick="printAllCategorySummaries()">🏷 Souhrn zboží po kategoriích</button>
   `;
-  if (segments.length) {
-    optionsHTML += `<div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-600);margin:14px 0 8px">Podle kategorie</div>`;
-    segments.forEach((seg, idx) => {
-      optionsHTML += `<button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printCategorySummary(${idx})">
-        <span class="group-badge" style="background:${seg.color};margin-right:6px">${seg.name}</span> (${seg.orders.length})
-      </button>`;
-    });
-  }
 
   document.getElementById("print-options-list").innerHTML = optionsHTML;
   window._printSegments = segments;
@@ -1041,14 +1025,20 @@ function printAllOrders() {
 function printGoodsSummary() {
   const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
   const orders = window._printOrdersToUse || [];
-  doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`));
+  doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`, false));
 }
 
-function printCategorySummary(idx) {
+function printAllCategorySummaries() {
   const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
-  const seg = (window._printSegments || [])[idx];
-  if (!seg) return;
-  doPrint(goodsSummaryHTML(seg.orders, `${seg.name} — souhrn zboží — ${today}`));
+  const segments = window._printSegments || [];
+  if (!segments.length) {
+    doPrint(`<div class="print-section-2"><h2>Souhrn zboží po kategoriích — ${today}</h2><p>Žádné objednávky</p></div>`);
+    return;
+  }
+  const html = segments
+    .map((seg, i) => goodsSummaryHTML(seg.orders, `${seg.name} — souhrn zboží — ${today}`, i > 0))
+    .join("");
+  doPrint(html);
 }
 
 // ── ORDER ACTIONS ─────────────────────────────────────
