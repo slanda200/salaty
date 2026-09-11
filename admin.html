@@ -989,7 +989,8 @@ function printOrders() {
   const optionsHTML = `
     <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printAllOrders()">📋 Všechny objednávky</button>
     <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printGoodsSummary()">📦 Souhrn objednaného zboží</button>
-    <button type="button" class="btn-action" style="width:100%;text-align:left" onclick="printAllCategorySummaries()">🏷 Souhrn zboží po kategoriích</button>
+    <button type="button" class="btn-action" style="width:100%;text-align:left;margin-bottom:8px" onclick="printAllCategorySummaries()">🏷 Souhrn zboží po kategoriích</button>
+    <button type="button" class="btn-action" style="width:100%;text-align:left" onclick="printEverything()">🖨 Vytisknout vše najednou</button>
   `;
 
   document.getElementById("print-options-list").innerHTML = optionsHTML;
@@ -1008,7 +1009,7 @@ document.getElementById("print-modal").addEventListener("click", function(e) {
   if (e.target === this) closePrintModal();
 });
 
-function printAllOrders() {
+function allOrdersHTML(pageBreak) {
   const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
   const segments = window._printSegments || [];
 
@@ -1027,11 +1028,15 @@ function printAllOrders() {
     });
   }
 
-  doPrint(`
-    <div class="print-section-1">
+  return `
+    <div class="print-section-1"${pageBreak ? ' style="page-break-before:always"' : ""}>
       <h2>Saláty od Kašši — objednávky — ${today}</h2>
       ${body}
-    </div>`);
+    </div>`;
+}
+
+function printAllOrders() {
+  doPrint(allOrdersHTML(false));
 }
 
 function printGoodsSummary() {
@@ -1040,16 +1045,28 @@ function printGoodsSummary() {
   doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`, false, true));
 }
 
-function printAllCategorySummaries() {
+function allCategorySummariesHTML(pageBreakFirst) {
   const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
   const segments = window._printSegments || [];
   if (!segments.length) {
-    doPrint(`<div class="print-section-2"><h2>Souhrn zboží po kategoriích — ${today}</h2><p>Žádné objednávky</p></div>`);
-    return;
+    return `<div class="print-section-2"${pageBreakFirst ? ' style="page-break-before:always"' : ""}><h2>Souhrn zboží po kategoriích — ${today}</h2><p>Žádné objednávky</p></div>`;
   }
-  const html = segments
-    .map((seg, i) => goodsSummaryHTML(seg.orders, `${seg.name} — souhrn zboží — ${today}`, i > 0))
+  return segments
+    .map((seg, i) => goodsSummaryHTML(seg.orders, `${seg.name} — souhrn zboží — ${today}`, i > 0 || pageBreakFirst))
     .join("");
+}
+
+function printAllCategorySummaries() {
+  doPrint(allCategorySummariesHTML(false));
+}
+
+function printEverything() {
+  const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const orders = window._printOrdersToUse || [];
+  const html =
+    allOrdersHTML(false) +
+    goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`, true, true) +
+    allCategorySummariesHTML(true);
   doPrint(html);
 }
 
