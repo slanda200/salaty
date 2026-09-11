@@ -931,7 +931,7 @@ function orderRowHTMLForPrint(o, num) {
 
 const ORDER_THEAD = `<thead><tr><th>#</th><th>Jméno</th><th>Telefon</th><th>Položky</th><th>Celkem</th><th>Poznámka</th></tr></thead>`;
 
-function goodsSummaryHTML(orders, heading, pageBreak) {
+function goodsSummaryHTML(orders, heading, pageBreak, withExtras) {
   const itemMap = {};
   orders.forEach(o => {
     if (!Array.isArray(o.items)) return;
@@ -942,8 +942,19 @@ function goodsSummaryHTML(orders, heading, pageBreak) {
     });
   });
   const summRows = Object.values(itemMap).sort((a, b) => a.name.localeCompare(b.name));
-  const totalQty   = summRows.reduce((s, r) => s + r.qty, 0);
-  const totalGoods = summRows.reduce((s, r) => s + r.qty * r.price, 0);
+  const totalQty      = summRows.reduce((s, r) => s + r.qty, 0);
+  const totalGoods    = summRows.reduce((s, r) => s + r.qty * r.price, 0);
+  const totalOrders   = orders.length;
+  const totalDelivery = totalQty * DELIVERY_PER_ITEM;
+  const grandTotal    = orders.reduce((s, o) => s + (o.total_price || 0), 0);
+
+  const extrasTable = withExtras ? `
+      <table style="margin-top:16px;width:300px;margin-left:auto">
+        <tr><td>Počet objednávek</td><td>${totalOrders}</td></tr>
+        <tr><td>Zboží celkem</td><td>${totalGoods} Kč</td></tr>
+        <tr><td>Doprava (${totalQty} ks × ${DELIVERY_PER_ITEM} Kč)</td><td>${totalDelivery} Kč</td></tr>
+        <tr><td><strong>CELKEM S DOPRAVOU</strong></td><td><strong>${grandTotal} Kč</strong></td></tr>
+      </table>` : "";
 
   return `
     <div class="print-section-2"${pageBreak ? ' style="page-break-before:always"' : ""}>
@@ -958,9 +969,10 @@ function goodsSummaryHTML(orders, heading, pageBreak) {
           </tr>`).join("") : `<tr><td colspan="5">Žádné objednávky</td></tr>`}
         </tbody>
         <tfoot>
-          <tr><td colspan="2"><strong>CELKEM</strong></td><td>${totalQty} ks</td><td></td><td><strong>${totalGoods} Kč</strong></td></tr>
+          <tr style="background:#fdf3e3"><td colspan="2"><strong>CELKEM</strong></td><td>${totalQty} ks</td><td></td><td><strong>${totalGoods} Kč</strong></td></tr>
         </tfoot>
       </table>
+      ${extrasTable}
     </div>`;
 }
 
@@ -1025,7 +1037,7 @@ function printAllOrders() {
 function printGoodsSummary() {
   const today = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
   const orders = window._printOrdersToUse || [];
-  doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`, false));
+  doPrint(goodsSummaryHTML(orders, `Souhrn objednaného zboží — ${today}`, false, true));
 }
 
 function printAllCategorySummaries() {
