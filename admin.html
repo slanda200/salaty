@@ -1311,7 +1311,10 @@ function renderTrashTable() {
       <td style="font-weight:700">${o.total_price} Kč</td>
       <td>${o.note || "—"}</td>
       <td>${groupBadge}</td>
-      <td><button class="btn-done" onclick="restoreOrder('${o.id}', this)">↩ Vrátit</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn-done" onclick="restoreOrder('${o.id}', this)">↩ Vrátit</button>
+        <button class="btn-trash" onclick="permanentlyDeleteOrder('${o.id}', this)" title="Smazat navždy">🗑</button>
+      </td>
     </tr>`;
   }).join("");
 }
@@ -1337,6 +1340,18 @@ async function restoreOrder(id, btn) {
   if (currentTab === "orders") {
     Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
   }
+}
+
+async function permanentlyDeleteOrder(id, btn) {
+  if (!confirm("Tato objednávka bude úplně smazána a už nebude moct být navrácena. Opravdu pokračovat?")) return;
+
+  btn.disabled = true; btn.textContent = "…";
+  const { error } = await db.from("deleted_orders").delete().eq("id", id);
+  if (error) { alert("Chyba: " + error.message); btn.disabled = false; btn.textContent = "🗑"; return; }
+
+  allDeletedOrders = allDeletedOrders.filter(x => x.id !== id);
+  renderTrashTable();
+  updateTrashBadge();
 }
 
 function updateTrashBadge() {
