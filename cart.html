@@ -61,7 +61,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="phone">Telefon *</label>
+        <label for="phone" id="phone-label">Telefon *</label>
         <input type="tel" id="phone" required placeholder="+420 777 123 456" />
       </div>
       <div class="form-group">
@@ -163,13 +163,23 @@ async function submitOrder(e) {
   btn.disabled = true;
   btn.textContent = "Odesílám…";
 
-  // Race condition check — objednávky mohly být mezitím vypnuty
-  const { data: settings } = await db.from("shop_settings").select("orders_enabled,closed_message").eq("id", 1).single();
+  // Race condition check — objednávky mohly být mezitím vypnuty / požadavek na telefon změněn
+  const { data: settings } = await db.from("shop_settings").select("orders_enabled,closed_message,phone_required").eq("id", 1).single();
   if (settings && settings.orders_enabled === false) {
     btn.disabled = false;
     btn.textContent = "Odeslat objednávku";
     showOrdersClosed(settings.closed_message);
     return;
+  }
+  if (settings) {
+    phoneRequired = settings.phone_required !== false;
+    applyPhoneRequirement();
+    if (phoneRequired && !document.getElementById("phone").value.trim()) {
+      btn.disabled = false;
+      btn.textContent = "Odeslat objednávku";
+      document.getElementById("phone").reportValidity();
+      return;
+    }
   }
 
   // Zjisti IP
@@ -246,10 +256,23 @@ function showOrdersClosed(message) {
   document.getElementById("order-section").style.display = "none";
 }
 
+let phoneRequired = true;
+
+function applyPhoneRequirement() {
+  const input = document.getElementById("phone");
+  const label = document.getElementById("phone-label");
+  input.required = phoneRequired;
+  label.textContent = phoneRequired ? "Telefon *" : "Telefon";
+}
+
 async function checkShopOpen() {
-  const { data } = await db.from("shop_settings").select("orders_enabled,closed_message").eq("id", 1).single();
-  if (data && data.orders_enabled === false) {
-    showOrdersClosed(data.closed_message);
+  const { data } = await db.from("shop_settings").select("orders_enabled,closed_message,phone_required").eq("id", 1).single();
+  if (data) {
+    phoneRequired = data.phone_required !== false;
+    applyPhoneRequirement();
+    if (data.orders_enabled === false) {
+      showOrdersClosed(data.closed_message);
+    }
   }
 }
 

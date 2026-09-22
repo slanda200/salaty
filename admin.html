@@ -231,6 +231,7 @@
       <button class="btn-outline" onclick="refreshCurrentTab()">↻ Obnovit</button>
       <button class="btn-outline" id="header-print" onclick="printOrders()" style="display:none">🖨 Vytisknout</button>
       <button class="btn-outline" id="orders-toggle-btn" onclick="toggleOrders()" style="display:none"></button>
+      <button class="btn-outline" id="phone-toggle-btn" onclick="togglePhoneRequired()" style="display:none"></button>
       <button class="btn-outline" onclick="logout()">⎋ Odhlásit</button>
     </div>
   </header>
@@ -435,12 +436,15 @@ let sortState     = { col: null, dir: null };
 
 // ── SHOP SETTINGS ─────────────────────────────────────
 let ordersEnabled = true;
+let phoneRequired = true;
 
 async function loadShopSettings() {
   const { data } = await db.from("shop_settings").select("*").eq("id", 1).single();
   if (data) {
     ordersEnabled = data.orders_enabled;
+    phoneRequired = data.phone_required !== false;
     updateOrdersToggleBtn();
+    updatePhoneToggleBtn();
   }
 }
 
@@ -469,6 +473,30 @@ async function toggleOrders() {
   if (error) { alert("Chyba: " + error.message); return; }
   ordersEnabled = newVal;
   updateOrdersToggleBtn();
+}
+
+function updatePhoneToggleBtn() {
+  const btn = document.getElementById("phone-toggle-btn");
+  btn.style.display = "";
+  if (phoneRequired) {
+    btn.textContent = "📵 Telefon je vyžadován";
+    btn.style.background = "";
+    btn.style.color = "";
+    btn.style.borderColor = "";
+  } else {
+    btn.textContent = "📵 Telefon není vyžadován";
+    btn.style.background = "var(--green)";
+    btn.style.color = "#fff";
+    btn.style.borderColor = "var(--green)";
+  }
+}
+
+async function togglePhoneRequired() {
+  const newVal = !phoneRequired;
+  const { error } = await db.from("shop_settings").update({ phone_required: newVal }).eq("id", 1);
+  if (error) { alert("Chyba: " + error.message); return; }
+  phoneRequired = newVal;
+  updatePhoneToggleBtn();
 }
 
 // ── LOGIN (Supabase Auth) ──────────────────────────────
