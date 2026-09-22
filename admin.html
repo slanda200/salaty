@@ -366,6 +366,19 @@
 
 </div>
 
+<!-- ── WHATS NEW MODAL ── -->
+<div id="whatsnew-modal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal-box" style="max-width:480px">
+    <button class="modal-close" onclick="closeWhatsNewModal()">✕</button>
+    <h3>🆕 Novinky v adminu</h3>
+    <ul style="margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:12px;font-size:.92rem;line-height:1.5;color:var(--gray-800)">
+      <li><strong>Povinnost telefonu</strong> — v hlavičce je nové tlačítko, kterým jde zapnout/vypnout, jestli zákazník musí při objednávce vyplnit telefon.</li>
+      <li><strong>Koš objednávek</strong> — smazané objednávky teď nezmizí navždy. Najdeš je v nové záložce „🗑 Koš", odkud jde omylem smazanou objednávku vrátit zpět mezi aktivní, nebo ji odtud smazat úplně natrvalo.</li>
+    </ul>
+    <button type="button" class="btn-save" onclick="closeWhatsNewModal()" style="width:100%">Rozumím</button>
+  </div>
+</div>
+
 <!-- ── PRINT MODAL ── -->
 <div id="print-modal" class="admin-modal-overlay" style="display:none">
   <div class="admin-modal-box" style="max-width:440px">
@@ -520,7 +533,28 @@ function enterAdmin() {
   document.getElementById("admin-content").style.display = "block";
   document.getElementById("header-print").style.display = "";
   Promise.all([loadGroups(), loadStatuses(), loadShopSettings()]).then(loadOrders);
+  maybeShowWhatsNew();
 }
+
+// ── WHAT'S NEW ──────────────────────────────────────────
+// Zvyš toto číslo při každé nové sadě novinek — modal se pak ukáže znovu všem adminům.
+const WHATSNEW_VERSION = "1";
+
+function maybeShowWhatsNew() {
+  const seen = localStorage.getItem("admin_whatsnew_seen");
+  if (seen === WHATSNEW_VERSION) return;
+  document.getElementById("whatsnew-modal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function closeWhatsNewModal() {
+  localStorage.setItem("admin_whatsnew_seen", WHATSNEW_VERSION);
+  document.getElementById("whatsnew-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("whatsnew-modal").addEventListener("click", function(e) {
+  if (e.target === this) closeWhatsNewModal();
+});
 
 async function checkPin() {
   const email = document.getElementById("login-email").value.trim();
