@@ -479,15 +479,11 @@ function updatePhoneToggleBtn() {
   const btn = document.getElementById("phone-toggle-btn");
   btn.style.display = "";
   if (phoneRequired) {
-    btn.textContent = "📵 Telefon je vyžadován";
+    btn.textContent = "Telefon je vyžadován";
     btn.style.background = "";
-    btn.style.color = "";
-    btn.style.borderColor = "";
   } else {
-    btn.textContent = "📵 Telefon není vyžadován";
+    btn.textContent = "Telefon není vyžadován";
     btn.style.background = "var(--green)";
-    btn.style.color = "#fff";
-    btn.style.borderColor = "var(--green)";
   }
 }
 
