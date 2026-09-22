@@ -244,6 +244,7 @@
     <button class="tab-btn active" data-tab="orders">📋 Objednávky</button>
     <button class="tab-btn" data-tab="products">🛒 Produkty</button>
     <button class="tab-btn" data-tab="blocked">🚫 Blokované IP <span id="blocked-badge" style="display:none;background:#c0392b;color:#fff;border-radius:50px;padding:1px 7px;font-size:.75rem;margin-left:4px"></span></button>
+    <button class="tab-btn" data-tab="trash">🗑 Koš <span id="trash-badge" style="display:none;background:#c0392b;color:#fff;border-radius:50px;padding:1px 7px;font-size:.75rem;margin-left:4px"></span></button>
   </div>
 
   <!-- ── TAB: ORDERS ── -->
@@ -346,6 +347,23 @@
     </div>
   </div>
 
+  <!-- ── TAB: TRASH ── -->
+  <div class="tab-panel" id="tab-trash">
+    <div class="admin-main">
+      <div class="orders-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Smazáno</th><th>Čas objednávky</th><th>Jméno</th><th>Telefon</th>
+              <th>Položky</th><th>Celkem</th><th>Poznámka</th><th>Kategorie</th><th>Akce</th>
+            </tr>
+          </thead>
+          <tbody id="trash-body"><tr><td colspan="10" class="empty-state">Načítám…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ── PRINT MODAL ── -->
@@ -428,6 +446,7 @@ let allGroups     = [];
 let allStatuses   = [];
 let allProducts   = [];
 let allBlockedIps = [];
+let allDeletedOrders = [];
 let orderIpMap    = {};
 let blockedIpSet  = new Set();
 let currentTab    = "orders";
@@ -546,6 +565,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById("header-print").style.display = currentTab === "orders" ? "" : "none";
     if (currentTab === "products" && !allProducts.length) loadProductsList();
     if (currentTab === "blocked") loadBlockedIps();
+    if (currentTab === "trash") loadTrash();
   });
 });
 
@@ -553,6 +573,7 @@ function refreshCurrentTab() {
   if (currentTab === "orders") Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
   else if (currentTab === "products") loadProductsList();
   else if (currentTab === "blocked") loadBlockedIps();
+  else if (currentTab === "trash") loadTrash();
 }
 
 // ── GROUPS ────────────────────────────────────────────
@@ -1104,9 +1125,24 @@ async function assignGroup(orderId, groupId) {
   renderOrdersTable();
 }
 
+// Přesune objednávky (podle jejich dat z allOrders) do koše místo trvalého smazání.
+async function moveOrdersToTrash(ids) {
+  const orders = allOrders.filter(o => ids.includes(o.id));
+  if (!orders.length) return { error: null };
+
+  const rows = orders.map(o => ({ ...o, deleted_at: new Date().toISOString() }));
+  const { error: insertError } = await db.from("deleted_orders").insert(rows);
+  if (insertError) return { error: insertError };
+
+  const { error: deleteError } = await db.from("orders").delete().in("id", ids);
+  if (deleteError) return { error: deleteError };
+
+  return { error: null };
+}
+
 async function deleteSingleOrder(id) {
-  if (!confirm("Smazat tuto objednávku?")) return;
-  const { error } = await db.from("orders").delete().eq("id", id);
+  if (!confirm("Přesunout tuto objednávku do koše?")) return;
+  const { error } = await moveOrdersToTrash([id]);
   if (error) { alert("Chyba: " + error.message); return; }
   allOrders = allOrders.filter(x => x.id !== id);
   selectedIds.delete(id);
@@ -1159,8 +1195,8 @@ async function bulkAssignGroup() {
 async function bulkDelete() {
   const ids = [...selectedIds];
   if (!ids.length) return;
-  if (!confirm(`Opravdu smazat ${ids.length} objednávek?`)) return;
-  const { error } = await db.from("orders").delete().in("id", ids);
+  if (!confirm(`Přesunout ${ids.length} objednávek do koše?`)) return;
+  const { error } = await moveOrdersToTrash(ids);
   if (error) { alert("Chyba: " + error.message); return; }
   allOrders = allOrders.filter(x => !ids.includes(x.id));
   selectedIds.clear();
@@ -1225,6 +1261,87 @@ async function unblockIp(id, ip, btn) {
 function updateBlockedBadge() {
   const badge = document.getElementById("blocked-badge");
   const count = blockedIpSet.size;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "" : "none";
+}
+
+// ── TRASH TAB ─────────────────────────────────────────
+async function loadTrash() {
+  const tbody = document.getElementById("trash-body");
+  tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Načítám…</td></tr>`;
+  const { data, error } = await db.from("deleted_orders").select("*").order("deleted_at", { ascending: false });
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state" style="color:#c0392b">Chyba: ${error.message}</td></tr>`;
+    return;
+  }
+  allDeletedOrders = data || [];
+  renderTrashTable();
+  updateTrashBadge();
+}
+
+function renderTrashTable() {
+  const tbody = document.getElementById("trash-body");
+  if (!allDeletedOrders.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Koš je prázdný</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allDeletedOrders.map(o => {
+    const orderDt = new Date(o.created_at);
+    const orderDtStr = orderDt.toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" }) + " " +
+                        orderDt.toLocaleTimeString("cs-CZ", { hour:"2-digit", minute:"2-digit" });
+    const deletedDt = new Date(o.deleted_at);
+    const deletedDtStr = deletedDt.toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" }) + " " +
+                          deletedDt.toLocaleTimeString("cs-CZ", { hour:"2-digit", minute:"2-digit" });
+
+    const itemsArr = Array.isArray(o.items) ? o.items : [];
+    const itemsShort = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join(", ");
+
+    const group = groupById(o.group_id);
+    const groupBadge = group
+      ? `<span class="group-badge" style="background:${group.color};font-size:.72rem;padding:2px 7px">${group.name}</span>`
+      : `<span style="color:var(--gray-400);font-size:.8rem">—</span>`;
+
+    return `<tr>
+      <td>${o.order_number ?? "—"}</td>
+      <td style="white-space:nowrap;color:#c0392b">${deletedDtStr}</td>
+      <td style="white-space:nowrap">${orderDtStr}</td>
+      <td>${o.first_name} ${o.last_name}</td>
+      <td>${o.phone || "—"}</td>
+      <td class="items-list">${itemsShort || "—"}</td>
+      <td style="font-weight:700">${o.total_price} Kč</td>
+      <td>${o.note || "—"}</td>
+      <td>${groupBadge}</td>
+      <td><button class="btn-done" onclick="restoreOrder('${o.id}', this)">↩ Vrátit</button></td>
+    </tr>`;
+  }).join("");
+}
+
+async function restoreOrder(id, btn) {
+  const order = allDeletedOrders.find(x => x.id === id);
+  if (!order) return;
+  if (!confirm("Vrátit tuto objednávku zpět do aktivních?")) return;
+
+  btn.disabled = true; btn.textContent = "…";
+
+  const { deleted_at, ...orderData } = order;
+  const { error: insertError } = await db.from("orders").insert(orderData);
+  if (insertError) { alert("Chyba: " + insertError.message); btn.disabled = false; btn.textContent = "↩ Vrátit"; return; }
+
+  const { error: deleteError } = await db.from("deleted_orders").delete().eq("id", id);
+  if (deleteError) { alert("Chyba: " + deleteError.message); }
+
+  allDeletedOrders = allDeletedOrders.filter(x => x.id !== id);
+  renderTrashTable();
+  updateTrashBadge();
+
+  if (currentTab === "orders") {
+    Promise.all([loadGroups(), loadStatuses()]).then(loadOrders);
+  }
+}
+
+function updateTrashBadge() {
+  const badge = document.getElementById("trash-badge");
+  const count = allDeletedOrders.length;
   badge.textContent = count;
   badge.style.display = count > 0 ? "" : "none";
 }
