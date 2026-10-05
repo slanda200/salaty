@@ -107,6 +107,9 @@
     .cp-text { width:100%; border:1.5px solid var(--gray-200); border-radius:8px; padding:8px 10px; font:inherit; font-size:.9rem; outline:none; }
     .cp-text:focus { border-color:var(--green); }
     .cp-note { font-size:.8rem; color:var(--gray-600); }
+    .cp-range { display:flex; align-items:center; gap:10px; }
+    .cp-range input { flex:1; accent-color:var(--green); }
+    .cp-range-val { font-size:.85rem; font-weight:700; min-width:42px; text-align:right; }
     @media (max-width:860px) {
       .admin-modal-box.cprint-box { height:auto; max-height:92vh; overflow-y:auto; }
       .cprint-layout { grid-template-columns:1fr; }
@@ -402,6 +405,10 @@
     <button class="modal-close" onclick="closeWhatsNewModal()">✕</button>
     <h3>🆕 Novinky v adminu</h3>
     <ul style="margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:12px;font-size:.92rem;line-height:1.5;color:var(--gray-800)">
+      <li><strong>Vlastní tisk s náhledem</strong> — v „🖨 Vytisknout" je nové tlačítko „🧩 Vlastní tisk". Naklikáš si, které části, sloupce a součty chceš tisknout, i velikost písma, a vpravo hned vidíš náhled stránky. Nastavení si prohlížeč zapamatuje.</li>
+      <li><strong>Nové statistiky</strong> — nahoře vidíš dnešní objednávky, tržbu dnes, celkový počet objednávek a celkovou tržbu rozdělenou na produkty a dopravu.</li>
+      <li><strong>Vyhledávání na webu</strong> — zákazníci můžou v horní liště obchodu vyhledat konkrétní salát.</li>
+      <li><strong>Bezpečnější objednávky</strong> — cenu objednávky teď počítá databáze, takže si ji zákazník nemůže upravit.</li>
       <li><strong>E-mail zákazníka</strong> — zákazník může v košíku nepovinně vyplnit e-mail. Přijde mu potvrzení objednávky s odkazem na její rekapitulaci. E-mail uvidíš pod telefonem a jde podle něj i hledat.</li>
     </ul>
     <button type="button" class="btn-save" onclick="closeWhatsNewModal()" style="width:100%">Rozumím</button>
@@ -591,7 +598,7 @@ function enterAdmin() {
 
 // ── WHAT'S NEW ──────────────────────────────────────────
 // Zvyš toto číslo při každé nové sadě novinek — modal se pak ukáže znovu všem adminům.
-const WHATSNEW_VERSION = "2";
+const WHATSNEW_VERSION = "3";
 
 function maybeShowWhatsNew() {
   const seen = localStorage.getItem("admin_whatsnew_seen");
@@ -1221,17 +1228,20 @@ const CPRINT_DEFAULTS = {
     grouped: true,
     cols: { num: true, time: false, name: true, phone: true, email: false, items: true, total: true, note: true, group: false, status: false },
     footer: true,
+    fontSize: 12,
   },
   goods: {
     on: true,
     cols: { name: true, variant: true, qty: true, price: true, sum: true },
     footer: true,
     extras: { count: true, goods: true, delivery: true, total: true },
+    fontSize: 12,
   },
   goodsByGroup: {
     on: false,
     footer: true,
     extras: { count: false, goods: false, delivery: false, total: false },
+    fontSize: 12,
   },
 };
 
@@ -1303,6 +1313,15 @@ function cpCheck(path, label) {
   return `<label class="cp-opt"><input type="checkbox" data-path="${path}" ${cpGet(path) ? "checked" : ""} /> ${label}</label>`;
 }
 
+function cpFontSize(path) {
+  const v = cpGet(path);
+  return `<div class="cp-sub">Velikost písma</div>
+    <div class="cp-range">
+      <input type="range" min="8" max="22" step="1" data-path="${path}" value="${v}" />
+      <span class="cp-range-val">${v} px</span>
+    </div>`;
+}
+
 function cpGroupOptions() {
   const list = [...allGroups.map(g => ({ id: g.id, name: g.name })), { id: "none", name: "Bez kategorie" }];
   const sel = cprint.groups;
@@ -1334,6 +1353,7 @@ function renderCustomPrintOptions() {
       <div class="cp-grid">${CP_ORDER_COLS.map(([k, l]) => cpCheck(`orders.cols.${k}`, l)).join("")}</div>
       <div class="cp-sub">Dole</div>
       ${cpCheck("orders.footer", "Řádek s počtem a součtem")}
+      ${cpFontSize("orders.fontSize")}
     </div>
 
     <div class="cp-card ${c.goods.on ? "" : "off"}">
@@ -1343,6 +1363,7 @@ function renderCustomPrintOptions() {
       <div class="cp-sub">Dole</div>
       ${cpCheck("goods.footer", "Řádek CELKEM")}
       <div class="cp-grid">${CP_EXTRAS.map(([k, l]) => cpCheck(`goods.extras.${k}`, l)).join("")}</div>
+      ${cpFontSize("goods.fontSize")}
     </div>
 
     <div class="cp-card ${c.goodsByGroup.on ? "" : "off"}">
@@ -1350,6 +1371,7 @@ function renderCustomPrintOptions() {
       <div class="cp-sub">Dole u každé kategorie</div>
       ${cpCheck("goodsByGroup.footer", "Řádek CELKEM")}
       <div class="cp-grid">${CP_EXTRAS.map(([k, l]) => cpCheck(`goodsByGroup.extras.${k}`, l)).join("")}</div>
+      ${cpFontSize("goodsByGroup.fontSize")}
     </div>
   `;
 }
@@ -1357,7 +1379,8 @@ function renderCustomPrintOptions() {
 document.getElementById("cprint-options").addEventListener("input", function(e) {
   const el = e.target;
   if (el.dataset.path) {
-    cpSet(el.dataset.path, el.type === "checkbox" ? el.checked : el.value);
+    cpSet(el.dataset.path, el.type === "checkbox" ? el.checked : el.type === "range" ? Number(el.value) : el.value);
+    if (el.type === "range") el.nextElementSibling.textContent = `${el.value} px`;
     if (el.type === "checkbox" && el.dataset.path.endsWith(".on")) {
       el.closest(".cp-card").classList.toggle("off", !el.checked);
     }
@@ -1462,6 +1485,7 @@ function customPrintBody() {
   const date = new Date().toLocaleDateString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric" });
   const head = t => `${esc(c.title)}${c.title ? " — " : ""}${t}${c.showDate ? ` — ${date}` : ""}`;
   const parts = [];
+  const push = (html, size) => parts.push({ html, size });
 
   if (c.orders.on) {
     let body;
@@ -1471,36 +1495,37 @@ function customPrintBody() {
         <h3 style="color:${seg.color}">${esc(seg.name)} — ${seg.orders.length} obj.</h3>
         ${cpOrdersTable(seg.orders)}`).join("");
     } else body = cpOrdersTable(orders);
-    parts.push(`<h2>${head("objednávky")}</h2>${body}`);
+    push(`<h2>${head("objednávky")}</h2>${body}`, c.orders.fontSize);
   }
 
   if (c.goods.on) {
-    parts.push(`<h2>${head("souhrn zboží")}</h2>${cpGoodsTable(orders, c.goods.footer, c.goods.extras)}`);
+    push(`<h2>${head("souhrn zboží")}</h2>${cpGoodsTable(orders, c.goods.footer, c.goods.extras)}`, c.goods.fontSize);
   }
 
   if (c.goodsByGroup.on) {
     const segs = buildPrintSegments(orders);
-    if (!segs.length) parts.push(`<h2>${head("souhrn zboží po kategoriích")}</h2><p>Žádné objednávky</p>`);
-    segs.forEach(seg => parts.push(
+    if (!segs.length) push(`<h2>${head("souhrn zboží po kategoriích")}</h2><p>Žádné objednávky</p>`, c.goodsByGroup.fontSize);
+    segs.forEach(seg => push(
       `<h2>${esc(seg.name)} — souhrn zboží${c.showDate ? ` — ${date}` : ""}</h2>` +
-      cpGoodsTable(seg.orders, c.goodsByGroup.footer, c.goodsByGroup.extras)));
+      cpGoodsTable(seg.orders, c.goodsByGroup.footer, c.goodsByGroup.extras), c.goodsByGroup.fontSize));
   }
 
   if (!parts.length) return `<p class="muted">Vyber vlevo aspoň jednu část k tisku.</p>`;
   return parts.map((p, i) =>
-    `<section class="${i > 0 && c.pageBreaks ? "pb" : i > 0 ? "gap" : ""}">${p}</section>`).join("");
+    `<section class="${i > 0 && c.pageBreaks ? "pb" : i > 0 ? "gap" : ""}" style="font-size:${Number(p.size) || 12}px">${p.html}</section>`).join("");
 }
 
 const CPRINT_CSS = `
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, sans-serif; color: #111; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
-  th, td { border: 0.5px solid #ccc; padding: 4px 8px; text-align: left; vertical-align: top; }
+  section { font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 1em; margin-bottom: 8px; }
+  th, td { border: 0.5px solid #ccc; padding: .33em .66em; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   th { background: #f5f5f5; font-weight: 600; }
   tfoot td, .foot td { background: #fdf3e3; }
-  table.extras { width: 300px; margin: 12px 0 0 auto; }
-  h2 { font-size: 16px; margin: 0 0 8px; }
-  h3 { font-size: 14px; margin: 16px 0 6px; }
+  table.extras { width: 25em; max-width: 100%; margin: 1em 0 0 auto; }
+  h2 { font-size: max(16px, 1.33em); margin: 0 0 8px; }
+  h3 { font-size: max(14px, 1.15em); margin: 16px 0 6px; }
   .muted { color: #888; font-size: 13px; }
   section.gap { margin-top: 24px; }
   @media screen {
