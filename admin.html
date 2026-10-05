@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Saláty od Kašši – Admin</title>
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <style>
     /* ── TABS ── */
     .tabs { display:flex; border-bottom:2px solid var(--gray-200); background:#fff; padding:0 24px; }
@@ -255,8 +255,11 @@
         <div class="stat-card"><div class="label">Dnešní objednávky</div><div class="value" id="stat-today">—</div></div>
         <div class="stat-card"><div class="label">Tržba dnes</div><div class="value" id="stat-revenue">—</div></div>
         <div class="stat-card"><div class="label">Celkem objednávek</div><div class="value" id="stat-total">—</div></div>
-        <div class="stat-card"><div class="label">Tržba celkem</div><div class="value" id="stat-revenue-total">—</div></div>
-        <div class="stat-card"><div class="label">Nové</div><div class="value" id="stat-new">—</div></div>
+        <div class="stat-card">
+          <div class="label">Tržba celkem</div>
+          <div class="value" id="stat-revenue-total">—</div>
+          <div class="stat-sub">Produkty: <strong id="stat-revenue-goods">—</strong> · Doprava: <strong id="stat-revenue-delivery">—</strong></div>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -973,18 +976,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function updateStats(orders) {
   document.getElementById("stat-total").textContent = orders.length;
-  const newCount = orders.filter(o => {
-    const s = statusById(o.status_id);
-    return !s || s.name === "Nová";
-  }).length;
-  document.getElementById("stat-new").textContent = newCount;
   const today = new Date().toDateString();
   const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === today);
   const sum = list => list.reduce((s, o) => s + (o.total_price || 0), 0);
   const kc = n => `${n.toLocaleString("cs-CZ")} Kč`;
   document.getElementById("stat-today").textContent = todayOrders.length;
   document.getElementById("stat-revenue").textContent = kc(sum(todayOrders));
-  document.getElementById("stat-revenue-total").textContent = kc(sum(orders));
+  const total = sum(orders);
+  const goods = orders.reduce((s, o) => s + (Array.isArray(o.items) ? o.items : [])
+                  .reduce((t, it) => t + (it.price || 0) * (it.qty || 0), 0), 0);
+  document.getElementById("stat-revenue-total").textContent = kc(total);
+  document.getElementById("stat-revenue-goods").textContent = kc(goods);
+  document.getElementById("stat-revenue-delivery").textContent = kc(total - goods);
 }
 
 // ── PRINT ────────────────────────────────────────────

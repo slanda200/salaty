@@ -777,6 +777,12 @@ body.cart #confirmation h3 { color: var(--accent-dark); }
   margin-top: 4px;
 }
 
+.stat-card .stat-sub {
+  font-size: 0.82rem;
+  color: var(--gray-600);
+  margin-top: 2px;
+}
+
 .orders-table-wrap {
   background: #fff;
   border-radius: var(--radius);
