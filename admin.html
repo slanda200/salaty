@@ -454,6 +454,12 @@
 <script>
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Escapování textu od zákazníků před vložením do HTML (ochrana proti XSS)
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
 let allOrders     = [];
 let allGroups     = [];
 let allStatuses   = [];
@@ -806,10 +812,10 @@ function orderRowHTML(o) {
   const fullDt = `${dateStr} ${timeStr}`;
 
   const itemsArr = Array.isArray(o.items) ? o.items : [];
-  const itemsShort = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join(", ");
-  const itemsFull  = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("\n");
+  const itemsShort = itemsArr.map(it => `${esc(it.name)}${it.variant ? ` (${esc(it.variant)})` : ""} ×${esc(it.qty)}`).join(", ");
+  const itemsFull  = itemsArr.map(it => `${esc(it.name)}${it.variant ? ` (${esc(it.variant)})` : ""} ×${esc(it.qty)}`).join("\n");
 
-  const noteShort = (o.note || "").length > 40 ? (o.note || "").slice(0, 40) + "…" : (o.note || "—");
+  const noteShort = esc((o.note || "").length > 40 ? (o.note || "").slice(0, 40) + "…" : (o.note || "—"));
 
   const group = groupById(o.group_id);
   const groupBadge = group
@@ -836,10 +842,10 @@ function orderRowHTML(o) {
   const isBlocked = ipAddr && blockedIpSet.has(ipAddr);
   const ipCell = ipAddr
     ? `<div class="ip-cell">
-        <span class="ip-text" title="${ipInfo.user_agent || ""}">${ipAddr}</span>
+        <span class="ip-text" title="${esc(ipInfo.user_agent)}">${esc(ipAddr)}</span>
         ${isBlocked
           ? `<span class="ip-blocked-badge">🚫</span>`
-          : `<button class="btn-block" onclick="blockIp('${ipAddr}')" title="Blokovat IP">🚫</button>`}
+          : `<button class="btn-block" data-ip="${esc(ipAddr)}" onclick="blockIp(this.dataset.ip)" title="Blokovat IP">🚫</button>`}
        </div>`
     : `<span style="color:var(--gray-400);font-size:.8rem">—</span>`;
 
@@ -848,11 +854,11 @@ function orderRowHTML(o) {
       <td data-column="cb"><input type="checkbox" class="row-cb" data-id="${o.id}" ${checked} onchange="toggleSelect('${o.id}', this.checked)" /></td>
       <td data-column="num">${o.order_number ?? "—"}</td>
       <td data-column="cas">${fullDt}</td>
-      <td data-column="jmeno" title="${o.first_name} ${o.last_name}">${o.first_name} ${o.last_name}</td>
-      <td data-column="telefon" title="${o.phone}">${o.phone}</td>
+      <td data-column="jmeno" title="${esc(o.first_name)} ${esc(o.last_name)}">${esc(o.first_name)} ${esc(o.last_name)}</td>
+      <td data-column="telefon" title="${esc(o.phone)}">${esc(o.phone)}</td>
       <td data-column="polozky" class="items-list" title="${itemsFull}">${itemsShort}</td>
       <td data-column="celkem" style="font-weight:700">${o.total_price} Kč</td>
-      <td data-column="poznamka" title="${o.note || ""}">${noteShort}</td>
+      <td data-column="poznamka" title="${esc(o.note)}">${noteShort}</td>
       <td data-column="kategorie">
         <div class="group-cell">
           ${groupBadge}
@@ -996,15 +1002,15 @@ function buildPrintSegments(ordersToUse) {
 
 function orderRowHTMLForPrint(o, num) {
   const items = Array.isArray(o.items)
-    ? o.items.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join("<br>")
+    ? o.items.map(it => `${esc(it.name)}${it.variant ? ` (${esc(it.variant)})` : ""} ×${esc(it.qty)}`).join("<br>")
     : "—";
   return `<tr>
     <td>${num}</td>
-    <td>${o.first_name} ${o.last_name}</td>
-    <td>${o.phone}</td>
+    <td>${esc(o.first_name)} ${esc(o.last_name)}</td>
+    <td>${esc(o.phone)}</td>
     <td>${items}</td>
     <td>${o.total_price} Kč</td>
-    <td>${o.note || ""}</td>
+    <td>${esc(o.note)}</td>
   </tr>`;
 }
 
@@ -1042,7 +1048,7 @@ function goodsSummaryHTML(orders, heading, pageBreak, withExtras) {
         <thead><tr><th>Název položky</th><th>Varianta</th><th>Počet ks</th><th>Cena/ks</th><th>Celková cena</th></tr></thead>
         <tbody>
           ${summRows.length ? summRows.map(r => `<tr>
-            <td>${r.name}</td><td>${r.variant || "—"}</td>
+            <td>${esc(r.name)}</td><td>${esc(r.variant || "—")}</td>
             <td>${r.qty} ks</td><td>${r.price} Kč</td>
             <td><strong>${r.qty * r.price} Kč</strong></td>
           </tr>`).join("") : `<tr><td colspan="5">Žádné objednávky</td></tr>`}
@@ -1273,10 +1279,10 @@ function renderBlockedTable() {
   tbody.innerHTML = allBlockedIps.map(b => {
     const date = new Date(b.blocked_at).toLocaleString("cs-CZ", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     return `<tr>
-      <td><span class="ip-text">${b.ip}</span></td>
-      <td>${b.reason || "—"}</td>
+      <td><span class="ip-text">${esc(b.ip)}</span></td>
+      <td>${esc(b.reason || "—")}</td>
       <td style="white-space:nowrap">${date}</td>
-      <td><button class="btn-done" onclick="unblockIp('${b.id}', '${b.ip}', this)">Odblokovat</button></td>
+      <td><button class="btn-done" data-ip="${esc(b.ip)}" onclick="unblockIp('${b.id}', this.dataset.ip, this)">Odblokovat</button></td>
     </tr>`;
   }).join("");
 }
@@ -1328,7 +1334,7 @@ function renderTrashTable() {
                           deletedDt.toLocaleTimeString("cs-CZ", { hour:"2-digit", minute:"2-digit" });
 
     const itemsArr = Array.isArray(o.items) ? o.items : [];
-    const itemsShort = itemsArr.map(it => `${it.name}${it.variant ? ` (${it.variant})` : ""} ×${it.qty}`).join(", ");
+    const itemsShort = itemsArr.map(it => `${esc(it.name)}${it.variant ? ` (${esc(it.variant)})` : ""} ×${esc(it.qty)}`).join(", ");
 
     const group = groupById(o.group_id);
     const groupBadge = group
@@ -1339,11 +1345,11 @@ function renderTrashTable() {
       <td>${o.order_number ?? "—"}</td>
       <td style="white-space:nowrap;color:#c0392b">${deletedDtStr}</td>
       <td style="white-space:nowrap">${orderDtStr}</td>
-      <td>${o.first_name} ${o.last_name}</td>
-      <td>${o.phone || "—"}</td>
+      <td>${esc(o.first_name)} ${esc(o.last_name)}</td>
+      <td>${esc(o.phone || "—")}</td>
       <td class="items-list">${itemsShort || "—"}</td>
       <td style="font-weight:700">${o.total_price} Kč</td>
-      <td>${o.note || "—"}</td>
+      <td>${esc(o.note || "—")}</td>
       <td>${groupBadge}</td>
       <td style="white-space:nowrap">
         <button class="btn-done" onclick="restoreOrder('${o.id}', this)">↩ Vrátit</button>
