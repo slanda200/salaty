@@ -200,6 +200,56 @@ body.shop .cart-btn:hover, body.cart .cart-btn:hover {
   background: var(--accent-dark);
 }
 
+/* Vyhledávání v horní liště (index.html) */
+.nav-search {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+.nav-search svg {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.nav-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 38px;
+  border: 1px solid var(--line);
+  border-radius: 50px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: .95rem;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+.nav-search input::placeholder { color: var(--ink-soft); }
+.nav-search input:focus { border-color: var(--accent); background: var(--surface); }
+
+@media (max-width: 700px) {
+  body.shop .nav-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 10px;
+  }
+  body.shop .nav-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
+
 body.shop .cart-count, body.cart .cart-count {
   color: var(--accent);
 }

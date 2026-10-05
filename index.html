@@ -12,6 +12,10 @@
 <nav>
   <div class="nav-inner">
     <span class="logo">Saláty od Kašši</span>
+    <div class="nav-search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="search" placeholder="Hledat salát…" autocomplete="off" aria-label="Hledat produkt" />
+    </div>
     <div class="nav-right">
       <button class="theme-toggle" id="theme-toggle" title="Přepnout tmavý režim" aria-label="Přepnout tmavý režim">☀</button>
       <a href="cart.html" class="cart-btn">
@@ -63,6 +67,12 @@ const CATEGORY_ORDER = ["Saláty", "Sýry", "Rybí speciality", "Pomazánky", "O
 const productMap = {};
 let allProducts = [];
 let activeCategory = "Vše";
+let searchQuery = "";
+
+// Pro hledání bez ohledu na diakritiku a velikost písmen ("salat" najde "Salát")
+function normalize(s) {
+  return String(s || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
 
 // ── Košík ─────────────────────────────────────────────
 function getCart() {
@@ -152,6 +162,10 @@ function buildSidebar(products) {
 
 function setCategory(cat) {
   activeCategory = cat;
+  if (searchQuery) {
+    searchQuery = "";
+    document.getElementById("search").value = "";
+  }
 
   document.querySelectorAll(".cat-item").forEach(el =>
     el.classList.toggle("active", el.dataset.cat === cat));
@@ -184,6 +198,26 @@ function productCardHTML(p) {
 
 function renderProducts() {
   const main = document.getElementById("main-content");
+
+  if (searchQuery) {
+    const words = normalize(searchQuery).split(/\s+/).filter(Boolean);
+    const found = allProducts.filter(p => {
+      const text = normalize(`${p.name} ${p.category} ${p.description}`);
+      return words.every(w => text.includes(w));
+    });
+    if (!found.length) {
+      main.innerHTML = `<div class="empty-state"></div>`;
+      main.firstElementChild.textContent = `Pro „${searchQuery}“ jsme nic nenašli.`;
+      return;
+    }
+    main.innerHTML = `
+      <section class="category-section">
+        <h2></h2>
+        <div class="products-grid">${found.map(productCardHTML).join("")}</div>
+      </section>`;
+    main.querySelector("h2").textContent = `Výsledky hledání „${searchQuery}“`;
+    return;
+  }
 
   if (activeCategory === "Vše") {
     // Seskup podle pořadí kategorií
@@ -365,6 +399,16 @@ async function checkShopOpen() {
     document.getElementById("orders-closed-banner").style.display = "";
   }
 }
+
+document.getElementById("search").addEventListener("input", function() {
+  searchQuery = this.value.trim();
+  if (searchQuery && activeCategory !== "Vše") {
+    activeCategory = "Vše";
+    document.querySelectorAll(".cat-item").forEach(el => el.classList.toggle("active", el.dataset.cat === "Vše"));
+    document.querySelectorAll(".cat-pill").forEach(el => el.classList.toggle("active", el.dataset.cat === "Vše"));
+  }
+  renderProducts();
+});
 
 updateCartCount();
 loadProducts();
