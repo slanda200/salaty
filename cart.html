@@ -67,7 +67,7 @@
       <div class="form-group">
         <label for="email">E-mail</label>
         <input type="email" id="email" placeholder="jana@email.cz" maxlength="200" />
-        <div class="form-hint">Nepovinné. Zadejte e-mail a pošleme vám potvrzení objednávky s odkazem, kde se k ní můžete kdykoliv vrátit.</div>
+        <div class="form-hint">Nepovinné. Když vyplníte e-mail, pošleme vám potvrzení objednávky i s odkazem, přes který se k ní můžete kdykoliv vrátit. Kdyby nepřišlo, mrkněte prosím i do spamu.</div>
       </div>
       <div class="form-group">
         <label for="note">Poznámka</label>
@@ -259,7 +259,7 @@ async function submitOrder(e) {
     const { data: mail } = await db.functions.invoke("order-email", { body: { orderId: newOrderId } });
     if (mail && mail.sent) {
       const el = document.getElementById("confirmation-email");
-      el.textContent = `Potvrzení jsme poslali na ${email}.`;
+      el.textContent = `Potvrzení vám právě letí na ${email}. Pokud ho nevidíte, mrkněte prosím i do spamu.`;
       el.style.display = "";
     }
   }
