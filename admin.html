@@ -252,9 +252,11 @@
     <div class="admin-main">
 
       <div class="stats-bar">
+        <div class="stat-card"><div class="label">Dnešní objednávky</div><div class="value" id="stat-today">—</div></div>
+        <div class="stat-card"><div class="label">Tržba dnes</div><div class="value" id="stat-revenue">—</div></div>
         <div class="stat-card"><div class="label">Celkem objednávek</div><div class="value" id="stat-total">—</div></div>
+        <div class="stat-card"><div class="label">Tržba celkem</div><div class="value" id="stat-revenue-total">—</div></div>
         <div class="stat-card"><div class="label">Nové</div><div class="value" id="stat-new">—</div></div>
-        <div class="stat-card"><div class="label">Tržby dnes</div><div class="value" id="stat-revenue">—</div></div>
       </div>
 
       <!-- Filters -->
@@ -977,9 +979,12 @@ function updateStats(orders) {
   }).length;
   document.getElementById("stat-new").textContent = newCount;
   const today = new Date().toDateString();
-  const rev = orders.filter(o => new Date(o.created_at).toDateString() === today)
-                    .reduce((s, o) => s + (o.total_price || 0), 0);
-  document.getElementById("stat-revenue").textContent = `${rev} Kč`;
+  const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === today);
+  const sum = list => list.reduce((s, o) => s + (o.total_price || 0), 0);
+  const kc = n => `${n.toLocaleString("cs-CZ")} Kč`;
+  document.getElementById("stat-today").textContent = todayOrders.length;
+  document.getElementById("stat-revenue").textContent = kc(sum(todayOrders));
+  document.getElementById("stat-revenue-total").textContent = kc(sum(orders));
 }
 
 // ── PRINT ────────────────────────────────────────────
