@@ -619,6 +619,13 @@ body.cart .order-form {
 }
 
 body.cart .form-group label { color: var(--ink-soft); }
+body.cart .form-hint { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; }
+
+/* Rekapitulace objednávky (order.html) */
+body.cart .order-sub { color: var(--ink-soft); margin: -8px 0 20px; }
+body.cart .order-info { display: grid; grid-template-columns: auto 1fr; gap: 8px 20px; }
+body.cart .order-info dt { color: var(--ink-soft); }
+body.cart .order-info dd { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; white-space: pre-line; }
 
 body.cart .form-group input,
 body.cart .form-group textarea {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Košík – Saláty od Kašši</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <script src="theme.js"></script>
 </head>
 <body class="cart">
@@ -65,6 +65,11 @@
         <input type="tel" id="phone" required placeholder="+420 777 123 456" />
       </div>
       <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="jana@email.cz" maxlength="200" />
+        <div class="form-hint">Nepovinné. Zadejte e-mail a pošleme vám potvrzení objednávky s odkazem, kde se k ní můžete kdykoliv vrátit.</div>
+      </div>
+      <div class="form-group">
         <label for="note">Poznámka</label>
         <textarea id="note" placeholder="Alergeny, speciální přání…"></textarea>
       </div>
@@ -77,6 +82,7 @@
     <div style="max-width:600px;margin:0 auto;padding:40px 20px">
       <div style="background:var(--green-light);border:2px solid var(--green);border-radius:var(--radius);padding:32px;text-align:center">
         <h3 style="color:var(--green);font-size:1.4rem;margin-bottom:8px">✅ Objednávka odeslána!</h3>
+        <p id="confirmation-email" style="display:none;color:var(--gray-800)"></p>
         <a href="index.html" style="display:inline-block;margin-top:16px;color:var(--green);font-weight:700">← Zpět na výběr</a>
       </div>
     </div>
@@ -218,12 +224,14 @@ async function submitOrder(e) {
   }));
 
   const newOrderId = crypto.randomUUID();
+  const email = document.getElementById("email").value.trim();
 
   const { error } = await db.from("orders").insert({
     id:          newOrderId,
     first_name:  document.getElementById("first_name").value.trim(),
     last_name:   document.getElementById("last_name").value.trim(),
     phone:       document.getElementById("phone").value.trim(),
+    email:       email || null,
     note:        document.getElementById("note").value.trim(),
     items,
     total_price: subtotal + delivery,
@@ -244,6 +252,16 @@ async function submitOrder(e) {
       ip:         userIp,
       user_agent: navigator.userAgent,
     });
+  }
+
+  // Potvrzovací e-mail (když selže, objednávka i tak platí)
+  if (email) {
+    const { data: mail } = await db.functions.invoke("order-email", { body: { orderId: newOrderId } });
+    if (mail && mail.sent) {
+      const el = document.getElementById("confirmation-email");
+      el.textContent = `Potvrzení jsme poslali na ${email}.`;
+      el.style.display = "";
+    }
   }
 
   saveCart([]);

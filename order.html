@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Objednávka – Saláty od Kašši</title>
+  <link rel="stylesheet" href="style.css?v=4" />
+  <script src="theme.js"></script>
+</head>
+<body class="cart">
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="logo">Saláty od Kašši</a>
+    <div class="nav-right">
+      <button class="theme-toggle" id="theme-toggle" title="Přepnout tmavý režim" aria-label="Přepnout tmavý režim">☀</button>
+      <a href="cart.html" class="cart-btn">
+        🛒 Košík <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<main>
+<div style="max-width:600px;margin:0 auto;padding:40px 20px">
+
+  <div id="order-loading" class="empty-state">Načítám objednávku…</div>
+
+  <div id="order-missing" class="empty-state" style="display:none">
+    Objednávka nebyla nalezena. Odkaz je neplatný, nebo byla objednávka zrušena.<br>
+    <a href="index.html">Zpět na výběr</a>
+  </div>
+
+  <div id="order-content" style="display:none">
+    <section>
+      <h2 id="order-title">Objednávka</h2>
+      <p class="order-sub" id="order-date"></p>
+      <div class="cart-box">
+        <div class="cart-items" id="order-items"></div>
+        <hr class="cart-divider" />
+        <div class="cart-summary">
+          <div class="cart-row"><span>Doprava</span><span id="order-delivery">0 Kč</span></div>
+          <div class="cart-row cart-total"><span>Celkem</span><span id="order-total">0 Kč</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vaše údaje</h2>
+      <div class="order-form">
+        <dl class="order-info" id="order-info"></dl>
+      </div>
+    </section>
+
+    <a href="index.html" style="display:inline-block;color:var(--accent);font-weight:700">← Zpět na výběr</a>
+  </div>
+
+</div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+});
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function getCart() {
+  try { return JSON.parse(localStorage.getItem("cart") || "[]"); } catch { return []; }
+}
+document.getElementById("cart-count").textContent =
+  getCart().reduce((s, i) => s + i.quantity, 0);
+
+function showMissing() {
+  document.getElementById("order-loading").style.display = "none";
+  document.getElementById("order-missing").style.display = "";
+}
+
+async function loadOrder() {
+  const token = new URLSearchParams(location.search).get("t") || "";
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return showMissing();
+
+  const { data: o, error } = await db.rpc("get_order", { token });
+  if (error || !o) return showMissing();
+
+  const items = Array.isArray(o.items) ? o.items : [];
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+  document.getElementById("order-title").textContent =
+    o.order_number ? `Objednávka č. ${o.order_number}` : "Objednávka";
+  document.getElementById("order-date").textContent =
+    "Odesláno " + new Date(o.created_at).toLocaleString("cs-CZ", {
+      day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+
+  document.getElementById("order-items").innerHTML = items.map(i => `
+    <div class="cart-item">
+      <div>
+        <div class="cart-item-name">${esc(i.name)}${i.variant ? ` <span style="color:var(--ink-soft);font-weight:400;font-size:.85rem">(${esc(i.variant)})</span>` : ""}</div>
+        <div class="cart-item-detail">${esc(i.qty)} × ${esc(i.price)} Kč</div>
+      </div>
+      <strong style="white-space:nowrap">${esc(i.price * i.qty)} Kč</strong>
+    </div>
+  `).join("");
+
+  document.getElementById("order-delivery").textContent = `${o.total_price - subtotal} Kč`;
+  document.getElementById("order-total").textContent = `${o.total_price} Kč`;
+
+  const info = [
+    ["Jméno", `${o.first_name} ${o.last_name}`],
+    ["Telefon", o.phone],
+    ["E-mail", o.email],
+    ["Poznámka", o.note],
+  ].filter(([, v]) => v && String(v).trim());
+  document.getElementById("order-info").innerHTML =
+    info.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+
+  document.getElementById("order-loading").style.display = "none";
+  document.getElementById("order-content").style.display = "";
+}
+
+loadOrder();
+</script>
+</body>
+</html>

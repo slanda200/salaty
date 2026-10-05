@@ -3,6 +3,17 @@
 
 begin;
 
+-- ── 0. Sloupce pro potvrzovací e-mail ────────────────────────
+-- view_token = tajný klíč v odkazu na rekapitulaci objednávky (order.html?t=…)
+alter table public.orders add column if not exists email text;
+alter table public.orders add column if not exists view_token uuid not null default gen_random_uuid();
+alter table public.orders add column if not exists email_sent_at timestamptz;
+create unique index if not exists orders_view_token_key on public.orders (view_token);
+-- Koš kopíruje všechny sloupce objednávky, proto je musí mít taky
+alter table public.deleted_orders add column if not exists email text;
+alter table public.deleted_orders add column if not exists view_token uuid;
+alter table public.deleted_orders add column if not exists email_sent_at timestamptz;
+
 -- ── 1. Kdo je admin ──────────────────────────────────────────
 -- Admin práva má jen tento e-mail, ne kdokoliv přihlášený.
 -- Pro dalšího admina přidej e-mail do seznamu.
@@ -113,6 +124,11 @@ begin
     raise exception 'Některý z údajů je příliš dlouhý.';
   end if;
 
+  new.email := nullif(lower(trim(new.email)), '');
+  if new.email is not null and (length(new.email) > 200 or new.email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then
+    raise exception 'Neplatný e-mail.';
+  end if;
+
   if new.items is null or jsonb_typeof(new.items) <> 'array' or jsonb_array_length(new.items) = 0 then
     raise exception 'Objednávka neobsahuje žádné položky.';
   end if;
@@ -165,6 +181,8 @@ begin
   new.group_id     := null;
   new.order_number := null;  -- přidělí trigger_set_order_number
   new.created_at   := now();
+  new.view_token    := gen_random_uuid();
+  new.email_sent_at := null;
   return new;
 end;
 $$;
@@ -173,5 +191,31 @@ drop trigger if exists enforce_order_prices on public.orders;
 create trigger enforce_order_prices
   before insert on public.orders
   for each row execute function public.enforce_order_prices();
+
+-- ── 6. Rekapitulace objednávky přes odkaz z e-mailu ──────────
+-- Vrátí jen jednu objednávku a jen tomu, kdo zná její tajný view_token.
+create or replace function public.get_order(token uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'order_number', order_number,
+    'created_at',   created_at,
+    'first_name',   first_name,
+    'last_name',    last_name,
+    'phone',        phone,
+    'email',        email,
+    'note',         note,
+    'items',        items,
+    'total_price',  total_price
+  )
+  from orders
+  where view_token = token;
+$$;
+
+grant execute on function public.get_order(uuid) to anon, authenticated;
 
 commit;
